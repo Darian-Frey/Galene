@@ -18,12 +18,16 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
 - `flowstate-core`: **implemented + tested** — `RichnessMapping::from_richness`,
   `effective_richness` (work 0–0.5 / break 0.5–1.0), `EvolutionState`. Types for
   `Environment`, `SessionType`/`FocusSession`, `SessionRecord`/`AnalyticsStore`,
-  RON (de)serialisation. Session ticking, transitions, and the insights engine
-  are stubbed (`TODO`).
-- `flowstate-visual`: scene model + RON loader (`Scene`, `Layer`,
-  `resolve_layer_params`, `EnvironmentDriver`, Drift/Sine evolution) implemented;
-  `rainy_library.ron` parse-tested. **All GPU code is stubbed** — `renderer`,
-  `compositor`, `dof`, `post/*`, and the WGSL shaders are doc-only `TODO`s.
+  RON (de)serialisation. `FocusSession::tick` interval logic (Pomodoro / Custom /
+  Free Flow) and `EvolutionConfig::active_events` (`Always` only) implemented +
+  tested. Deep Work ticking, the insights engine, and SQLite persistence remain
+  stubbed (`TODO`).
+- `flowstate-visual`: scene model + RON loader (`Scene`, `Layer`, Drift/Sine
+  evolution) implemented; `rainy_library.ron` parse-tested. `EnvironmentDriver`
+  now ticks (`advance`: evolution + work↔break `state_blend` over the transition)
+  and `resolve_layer_params` applies the richness-scaling table (D-010) — both
+  tested. **All GPU code is stubbed** — `renderer`, `compositor`, `dof`,
+  `post/*`, and the WGSL shaders are doc-only `TODO`s.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
 - `flowstate-app`: placeholder binary (prints a banner). **Tauri shell + TS

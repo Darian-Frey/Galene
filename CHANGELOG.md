@@ -18,6 +18,14 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   header, FEATURES, ROADMAP, ARCHITECTURE, DECISIONS (D-001…D-009), BUILD,
   ATTACK_VECTORS (AV-001…AV-005), BUGS, IMPROVEMENTS, CLAUDE, dual LICENSE.
 
+- `FocusSession::tick` — work/break interval logic for Pomodoro, Custom, and
+  Free Flow sessions, emitting `SessionEvent` boundaries (F-005).
+- `EnvironmentDriver::advance` — ticks the evolution cycle and animates the
+  work↔break `state_blend` over the transition duration (F-004).
+- `resolve_layer_params` richness-scaling table — the user dial now scales
+  density/intensity/motion params by name (D-010, F-003).
+- `EvolutionConfig::active_events` — resolves `Always` evolution-event windows.
+
 ### Changed
 - Project renamed to **Galene** (branding only — D-009). Crate names
   (`flowstate-*`), the binary, the `.flowenv` format, and the design docs retain

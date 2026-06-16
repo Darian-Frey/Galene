@@ -41,6 +41,18 @@ impl Default for SessionType {
     }
 }
 
+/// What a [`FocusSession::tick`] produced this step. The app uses these to
+/// drive the work↔break environmental transition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SessionEvent {
+    /// No interval boundary crossed this tick.
+    None,
+    /// A work interval ended; the session entered a break (`long` = long break).
+    EnteredBreak { long: bool },
+    /// A break ended; the session returned to work.
+    EnteredWork,
+}
+
 /// A live focus session.
 #[derive(Debug, Clone)]
 pub struct FocusSession {
@@ -73,6 +85,135 @@ impl FocusSession {
         }
     }
 
-    // TODO(phase-2): interval ticking, work↔break transitions driven by
-    // TransitionConfig, interruption logging, and end-of-session recording.
+    /// Toggle the pause state. A paused session ignores `tick`.
+    pub fn toggle_pause(&mut self) {
+        self.paused = !self.paused;
+    }
+
+    /// Advance the session by `dt_secs`. Returns any interval boundary crossed.
+    /// A paused session does not advance. Free Flow is untimed (the elapsed time
+    /// accrues but no boundary fires); Deep Work interval handling is deferred.
+    pub fn tick(&mut self, dt_secs: f32) -> SessionEvent {
+        if self.paused {
+            return SessionEvent::None;
+        }
+        self.elapsed_secs += dt_secs;
+
+        match self.session_type {
+            SessionType::Pomodoro {
+                work_min,
+                break_min,
+                long_break_min,
+                intervals_until_long,
+            } => self.tick_intervals(work_min, break_min, long_break_min, intervals_until_long),
+            // Custom has no long break: pass an unreachable threshold.
+            SessionType::Custom {
+                work_min,
+                break_min,
+                ..
+            } => self.tick_intervals(work_min, break_min, break_min, 0),
+            SessionType::FreeFlow => SessionEvent::None,
+            // TODO(phase-2): Deep Work — single long block with a midpoint break.
+            SessionType::DeepWork { .. } => SessionEvent::None,
+        }
+    }
+
+    /// Shared work/break interval logic. `intervals_until_long == 0` disables the
+    /// long break (used by Custom sessions).
+    fn tick_intervals(
+        &mut self,
+        work_min: f32,
+        break_min: f32,
+        long_break_min: f32,
+        intervals_until_long: u32,
+    ) -> SessionEvent {
+        let is_long = |completed: u32| {
+            intervals_until_long != 0 && completed != 0 && completed.is_multiple_of(intervals_until_long)
+        };
+
+        match self.state {
+            WorkBreakState::Work => {
+                if self.elapsed_secs >= work_min * 60.0 {
+                    self.intervals_completed += 1;
+                    self.elapsed_secs = 0.0;
+                    self.state = WorkBreakState::Break;
+                    SessionEvent::EnteredBreak {
+                        long: is_long(self.intervals_completed),
+                    }
+                } else {
+                    SessionEvent::None
+                }
+            }
+            WorkBreakState::Break => {
+                let break_len = if is_long(self.intervals_completed) {
+                    long_break_min
+                } else {
+                    break_min
+                };
+                if self.elapsed_secs >= break_len * 60.0 {
+                    self.elapsed_secs = 0.0;
+                    self.state = WorkBreakState::Work;
+                    SessionEvent::EnteredWork
+                } else {
+                    SessionEvent::None
+                }
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn pomodoro_1_1_2_every_2() -> FocusSession {
+        FocusSession::new(
+            SessionType::Pomodoro {
+                work_min: 1.0,
+                break_min: 1.0,
+                long_break_min: 2.0,
+                intervals_until_long: 2,
+            },
+            "rainy_library".into(),
+            None,
+        )
+    }
+
+    #[test]
+    fn work_interval_ends_into_a_short_break() {
+        let mut s = pomodoro_1_1_2_every_2();
+        assert_eq!(s.tick(59.0), SessionEvent::None);
+        assert_eq!(s.tick(1.0), SessionEvent::EnteredBreak { long: false });
+        assert_eq!(s.state, WorkBreakState::Break);
+        assert_eq!(s.intervals_completed, 1);
+    }
+
+    #[test]
+    fn every_nth_break_is_long() {
+        let mut s = pomodoro_1_1_2_every_2();
+        // Interval 1 → short break → back to work.
+        assert_eq!(s.tick(60.0), SessionEvent::EnteredBreak { long: false });
+        assert_eq!(s.tick(60.0), SessionEvent::EnteredWork);
+        // Interval 2 → long break (2 % 2 == 0).
+        assert_eq!(s.tick(60.0), SessionEvent::EnteredBreak { long: true });
+        // Long break is 2 minutes: not over at 60s, over at 120s.
+        assert_eq!(s.tick(60.0), SessionEvent::None);
+        assert_eq!(s.tick(60.0), SessionEvent::EnteredWork);
+    }
+
+    #[test]
+    fn paused_session_does_not_advance() {
+        let mut s = pomodoro_1_1_2_every_2();
+        s.toggle_pause();
+        assert_eq!(s.tick(120.0), SessionEvent::None);
+        assert_eq!(s.elapsed_secs, 0.0);
+        assert_eq!(s.state, WorkBreakState::Work);
+    }
+
+    #[test]
+    fn free_flow_accrues_time_without_boundaries() {
+        let mut s = FocusSession::new(SessionType::FreeFlow, "rainy_library".into(), None);
+        assert_eq!(s.tick(3600.0), SessionEvent::None);
+        assert_eq!(s.elapsed_secs, 3600.0);
+    }
 }

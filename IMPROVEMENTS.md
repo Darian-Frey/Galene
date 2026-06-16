@@ -13,10 +13,29 @@ Effort vocabulary: trivial | small | medium | large.
 
 ## Suggested
 
-_None yet._
+### IMP-001: Blend effective richness across the work↔break transition
+**Status:** suggested
+**Found:** 2026-06-16 (while implementing the driver/richness logic)
+**Location:** [flowstate-visual/src/driver.rs](flowstate-visual/src/driver.rs) `context()`, [flowstate-visual/src/layer.rs](flowstate-visual/src/layer.rs) `resolve_layer_params`
+**Effort:** small
+**Description.** `resolve_layer_params` derives the `RichnessMapping` from
+`effective_richness(user_richness, ctx.state)`, where `state` is the discrete
+target (Work or Break). So the richness mapping *steps* at the instant
+`set_state` is called, while the authored work/break params blend smoothly over
+the 60–90s transition via `state_blend`. The mismatch means richness-scaled
+params (rain, particles, light) jump at transition start instead of easing.
+**Proposal.** Pass a continuous effective richness into the resolver: lerp the
+work and break effective-richness values by `state_blend`
+(`lerp(user*0.5, 0.5+user*0.5, state_blend)`), and build the mapping from that.
+**Trade-offs.** Adds a second, blend-aware richness path alongside the discrete
+`effective_richness`; marginally more complex. The step may be visually
+negligible once authored params already blend — worth confirming against the
+real renderer before committing, which is why this is logged rather than applied.
+**Notes.** Related to DECISIONS D-010 (richness resolution). Defer until the
+renderer makes the transition visible.
 
 <!--
-### IMP-001: {short title}
+### IMP-NNN: {short title}
 **Status:** suggested
 **Found:** YYYY-MM-DD ({session/commit context})
 **Location:** {path/to/file.rs:line, or "cross-cutting"}

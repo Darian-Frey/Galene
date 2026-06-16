@@ -244,3 +244,40 @@ README and CLAUDE).
 **Reversal conditions.** Escalate to a full rebrand (Option A) if the dual naming
 causes ongoing confusion, or before a public launch where a single consistent
 name across code and branding is wanted. That would be a new DECISIONS entry.
+
+### D-010 Layer richness scaling: work/break baseline × master richness, by name
+**Decided:** 2026-06-16
+**Recorded:** 2026-06-16
+**Status:** Accepted
+**Authors:** Claude
+**Related:** F-003, F-010, render-doc §6
+
+**Context.** `resolve_layer_params` had to commit to two things the render doc
+leaves open: the order of operations, and which `RichnessMapping` field scales
+which parameter ("module-specific" in render-doc §6). The doc's literal
+pseudocode order is `base → evolution → richness → lerp(work,break)`, which would
+make the work/break lerp *overwrite* the richness-scaled value — so the user's
+richness dial would not affect any parameter that has authored work/break states
+(e.g. `rain_density`). That contradicts F-003 and the Phase-0 milestone ("the
+richness dial adjusts the rain").
+
+**Options.**
+- **A. Follow the doc's literal order.** Rejected: the dial cannot move authored
+  params; the flagship "adjust the rain" demo would not work.
+- **B. Reorder so work/break is the per-key baseline and richness is a master
+  multiplier, with the mapping field chosen by parameter name.** Chosen.
+
+**Decision.** Per key: baseline = work/break lerp if authored, else `base`; add
+evolution drift; multiply by a richness factor selected by name
+(`richness_scale_for` — density/particle/rain → `particle_density`,
+intensity/glow/bloom → `effect_intensity`, motion/speed → `motion_amount`,
+saturation/colour → `colour_saturation`, detail → `visual_detail`; everything
+else unscaled). Result clamped to 0..1.
+
+**Consequences.** The dial visibly scales authored params (rain, particles,
+light). Structural params (darkness, warmth, storm visibility) are deliberately
+left unscaled. The name heuristic is provisional and centralised in one function.
+
+**Reversal conditions.** Replace the name heuristic with an explicit per-param
+scaling declaration in the scene format if a module's parameters don't fit the
+name buckets, or if the 0..1 clamp clips a legitimately-HDR parameter.

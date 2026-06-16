@@ -53,6 +53,37 @@ pub struct EvolutionConfig {
     pub events: Vec<EvolutionEvent>,
 }
 
+impl EvolutionConfig {
+    /// Events whose active window contains `cycle_position` (0–1). Only `Always`
+    /// events are considered here; `RandomChance` and `OncePerSession` need a
+    /// host-supplied seed / per-session state and are resolved by the caller
+    /// (TODO(phase-1)). The window wraps past the end of the cycle.
+    pub fn active_events(&self, cycle_position: f32) -> Vec<&EvolutionEvent> {
+        if self.cycle_minutes <= 0.0 {
+            return Vec::new();
+        }
+        let cycle_secs = self.cycle_minutes * 60.0;
+        let pos = cycle_position.rem_euclid(1.0);
+        self.events
+            .iter()
+            .filter(|e| {
+                if !matches!(e.recurrence, EventRecurrence::Always) {
+                    return false;
+                }
+                let dur_frac = (e.duration_secs / cycle_secs).clamp(0.0, 1.0);
+                let start = e.cycle_position.rem_euclid(1.0);
+                let end = start + dur_frac;
+                if end <= 1.0 {
+                    pos >= start && pos < end
+                } else {
+                    // window wraps past 1.0
+                    pos >= start || pos < (end - 1.0)
+                }
+            })
+            .collect()
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EvolutionEvent {
     pub name: String,
@@ -108,5 +139,54 @@ impl Default for TransitionConfig {
             work_to_break_secs: 90.0,
             break_to_work_secs: 60.0,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn event(name: &str, pos: f32, dur: f32, rec: EventRecurrence) -> EvolutionEvent {
+        EvolutionEvent {
+            name: name.into(),
+            cycle_position: pos,
+            duration_secs: dur,
+            visual_change: HashMap::new(),
+            audio_change: HashMap::new(),
+            recurrence: rec,
+        }
+    }
+
+    #[test]
+    fn active_events_respects_window_and_recurrence() {
+        // 10-minute cycle (600s). A 60s event at cycle position 0.5 is active
+        // across [0.5, 0.6).
+        let cfg = EvolutionConfig {
+            cycle_minutes: 10.0,
+            variation_amount: 0.0,
+            events: vec![
+                event("thunder", 0.5, 60.0, EventRecurrence::Always),
+                event("rare", 0.5, 60.0, EventRecurrence::OncePerSession),
+            ],
+        };
+        assert_eq!(cfg.active_events(0.4).len(), 0);
+        // Only the Always event fires; OncePerSession is left to the caller.
+        let active = cfg.active_events(0.52);
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].name, "thunder");
+        assert_eq!(cfg.active_events(0.65).len(), 0);
+    }
+
+    #[test]
+    fn active_event_window_wraps_past_end_of_cycle() {
+        let cfg = EvolutionConfig {
+            cycle_minutes: 10.0,
+            variation_amount: 0.0,
+            events: vec![event("wrap", 0.97, 120.0, EventRecurrence::Always)],
+        };
+        // 120s / 600s = 0.2 wide, starting at 0.97 → wraps to 0.17.
+        assert_eq!(cfg.active_events(0.98).len(), 1);
+        assert_eq!(cfg.active_events(0.10).len(), 1);
+        assert_eq!(cfg.active_events(0.30).len(), 0);
     }
 }
