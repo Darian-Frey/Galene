@@ -30,7 +30,10 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   `post/*`, and the WGSL shaders are doc-only `TODO`s.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
-- `flowstate-app`: placeholder binary (prints a banner). **Tauri shell + TS
+- `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
+  scene, prints the richness-dial→rain table, then simulates a 25/5 Pomodoro
+  driving `FocusSession` + `EnvironmentDriver` together (transitions, blend,
+  evolution) and records the session into `AnalyticsStore`. **Tauri shell + TS
   frontend not started.**
 
 ## Active task

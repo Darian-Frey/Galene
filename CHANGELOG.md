@@ -25,6 +25,9 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
 - `resolve_layer_params` richness-scaling table — the user dial now scales
   density/intensity/motion params by name (D-010, F-003).
 - `EvolutionConfig::active_events` — resolves `Always` evolution-event windows.
+- `flowstate-app` headless logic demo — loads the Rainy Library, prints the
+  richness-dial→rain table, and runs a simulated Pomodoro driving the session +
+  environment driver together, recording the result into `AnalyticsStore`.
 
 ### Changed
 - Project renamed to **Galene** (branding only — D-009). Crate names

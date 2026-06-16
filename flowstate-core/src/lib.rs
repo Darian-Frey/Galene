@@ -18,4 +18,4 @@ pub use environment::{
 };
 pub use evolution::EvolutionState;
 pub use richness::{effective_richness, smooth_step, RichnessMapping, WorkBreakState};
-pub use session::{FocusSession, SessionType};
+pub use session::{FocusSession, SessionEvent, SessionType};
