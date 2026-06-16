@@ -3,8 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::VisualModule;
-
 /// A single placeable light source within a VolumetricLight layer.
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LightSource {
@@ -25,11 +23,9 @@ pub struct VolumetricLight {
     pub flicker: f32,
 }
 
-impl VisualModule for VolumetricLight {
-    fn name(&self) -> &str {
-        "VolumetricLight"
-    }
-}
+// TODO(phase-0): implement `VisualModule` (additive radial falloff per source)
+// once the compositor supports additive blend layers. The struct above holds the
+// parameters until then.
 
 // TODO(phase-0): WGSL (shaders/volumetric_light.wgsl) — additive radial falloff
 // per source, optional radial-blur god rays. Composited additively.

@@ -23,12 +23,14 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   `SessionEvent::Completed`) and `EvolutionConfig::active_events` (`Always` only)
   implemented + tested. The insights engine and SQLite persistence remain
   stubbed (`TODO`).
-- `flowstate-visual`: scene model + RON loader (`Scene`, `Layer`, Drift/Sine
-  evolution) implemented; `rainy_library.ron` parse-tested. `EnvironmentDriver`
-  now ticks (`advance`: evolution + work↔break `state_blend` over the transition)
-  and `resolve_layer_params` applies the richness-scaling table (D-010) — both
-  tested. **All GPU code is stubbed** — `renderer`, `compositor`, `dof`,
-  `post/*`, and the WGSL shaders are doc-only `TODO`s.
+- `flowstate-visual`: scene model + RON loader, `EnvironmentDriver` (advance +
+  transition blend), `resolve_layer_params` richness scaling (D-010) — all tested.
+  **Renderer is live (greenfield, D-011):** the canonical `VisualModule` trait
+  (`ModuleInit`/`FrameCtx`), a headless `GpuContext` (wgpu 29), the `ShaderCanvas`
+  module, and the offscreen `Compositor` (render-doc §11 step 1) work — verified
+  by headless pixel readback (`renderer::tests`) and `--example render_frame`.
+  **Still stubbed:** `dof`, `post/*`, GlassRain/VolumetricLight modules, the
+  scene/driver→GPU wiring, and the windowed surface loop.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
 - `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
@@ -39,12 +41,16 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
 
 ## Active task
 
-Phase 0 (see [ROADMAP.md](ROADMAP.md)), following render-doc §11 build order:
-compositor with one trivial layer → per-layer DOF → driver+richness wired to
-visible output → post chain → Rainy Library + GlassRain/VolumetricLight.
-**Blocked** on the render-doc §12 open questions about the Synaesthesia pipeline
-(DECISIONS D-003/D-005) — resolve those before writing wgpu code. Relevant
-features: F-010, F-001, F-003, F-009.
+Phase 0 GPU work (see [ROADMAP.md](ROADMAP.md)), render-doc §11 build order:
+design the canonical `VisualModule` render-into-target trait → wgpu device/surface
+setup → compositor with one trivial layer → per-layer DOF → post chain → Rainy
+Library + GlassRain/VolumetricLight.
+
+The render-doc §12 questions are **resolved** (D-011) and step 1 is done. **Next:**
+render-doc §11 step 2 (per-layer DOF blur, two layers to prove depth separation),
+then step 3 (wire `EnvironmentDriver` + richness to visible output via a
+`ModuleSpec`→module factory), then step 4 (the post chain). Relevant features:
+F-010, F-001, F-003, F-009.
 
 ## Invariants
 
@@ -84,13 +90,17 @@ cargo run -p flowstate-app
 - Naming: the *rendering* scene type is `flowstate_visual::Scene`; the
   *product* type is `flowstate_core::Environment`. They are distinct (D-004) —
   don't conflate them. `core::Environment::visual.scene` names the `.ron` file.
+- When extracting the shared visual-module crate, do **not** name it `nyx-vis` —
+  that name is reserved for the audio→visual data bridge (D-011). Use a distinct
+  name (`vis-modules`, `nyx-modules`, …).
 - `Cargo.lock` is committed (workspace has a binary).
 
 ## Out of scope (do not change without asking)
 
 - The 2.5D-layers-not-3D rendering decision (D-001) — settled.
-- Adding heavy dependencies (wgpu, Tauri, rusqlite, Nyx) ahead of their phase
-  (D-005) — keep the workspace building offline until then.
+- Adding Tauri, rusqlite, or Nyx ahead of their phase (D-005) — keep the
+  workspace building offline until then. (wgpu is now **in-phase** — render-doc
+  §12 resolved, D-011 — and may be added for the renderer.)
 - **Log, don't silently fix:** per Maintenance Rule 8, when you spot a bug or
   improvement while doing something else, add it to [BUGS.md](BUGS.md) /
   [IMPROVEMENTS.md](IMPROVEMENTS.md) and let the user decide — don't fix inline.

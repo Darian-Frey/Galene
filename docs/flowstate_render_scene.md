@@ -454,6 +454,16 @@ Performance levers, in order of preference:
 
 ## 12. Open questions to confirm before starting
 
+> **Resolved 2026-06-16 — see Galene `DECISIONS.md` D-011.** Repo inspection found
+> Synaesthesia is not yet built (no repo; the Nyx workspace is audio-only), so
+> there is no upstream to reuse. **Q1:** extract a *new* shared module crate from
+> Galene — do **not** name it `nyx-vis` (reserved for the audio→visual data
+> bridge); Galene defines the canonical `VisualModule` trait. **Q2:** the
+> per-layer RGBA16F offscreen compositor is greenfield here, not an adaptation.
+> **Q3:** build bloom new (the `bloom_threshold` / `bloom_intensity` knobs are
+> already correct). **Q4:** lift/gamma/gain curves confirmed (Galene D-008); no
+> LUT for v1. The questions below are retained as the original plan.
+
 These need a question to Claude web (or a decision from Shane) before implementation:
 
 1. **Shared module crate arrangement** — does Synaesthesia currently expose its modules as a separate crate FlowState can depend on, or do they need extracting into a shared `nyx-vis`-style crate? (§9)

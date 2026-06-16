@@ -7,6 +7,9 @@ Cargo.lock.orig
 node_modules/
 dist/
 
+# Rendered output artifacts
+*.ppm
+
 # Editor / OS
 .DS_Store
 *.swp

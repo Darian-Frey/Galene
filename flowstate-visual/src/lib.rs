@@ -15,6 +15,7 @@
 pub mod compositor;
 pub mod dof;
 pub mod driver;
+pub mod gpu;
 pub mod evolution_visual;
 pub mod layer;
 pub mod modules;
@@ -22,6 +23,11 @@ pub mod post;
 pub mod renderer;
 pub mod scene;
 
+pub use compositor::Compositor;
 pub use driver::EnvironmentDriver;
+pub use gpu::GpuContext;
 pub use layer::{BlendMode, DriverContext, Layer};
+pub use modules::shader_canvas::ShaderCanvasModule;
+pub use modules::{FrameCtx, ModuleInit, VisualModule};
+pub use renderer::{module_init, render_module_to_rgba8};
 pub use scene::Scene;

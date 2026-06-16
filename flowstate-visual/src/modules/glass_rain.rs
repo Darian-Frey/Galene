@@ -7,8 +7,6 @@
 
 use serde::{Deserialize, Serialize};
 
-use super::VisualModule;
-
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct GlassRain {
     pub rain_density: f32,
@@ -33,11 +31,9 @@ impl Default for GlassRain {
     }
 }
 
-impl VisualModule for GlassRain {
-    fn name(&self) -> &str {
-        "GlassRain"
-    }
-}
+// TODO(phase-0): implement `VisualModule` (render into the layer target reading
+// the backdrop, `reads_backdrop` → true) once the compositor's back-buffer path
+// lands. The struct above holds the parameters until then.
 
 // TODO(phase-0): WGSL fragment shader (shaders/glass_rain.wgsl) — procedural
 // droplet field sampling the back buffer with a refraction offset and vertical

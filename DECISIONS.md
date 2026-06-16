@@ -84,6 +84,11 @@ module-crate arrangement, offscreen vs swapchain, bloom reuse, grade representat
 **Reversal conditions.** Revisit if the Synaesthesia coupling proves more costly
 to coordinate than maintaining a separate renderer would be.
 
+**Amended by D-011 (2026-06-16).** Synaesthesia turned out not to be built. The
+intent here (share modules, write the trait once) stands, but the *direction* is
+reversed: Galene defines the canonical trait and renderer first, and Synaesthesia
+conforms to it later — not the reverse.
+
 ### D-004 Distinct `Scene` (rendering) vs `Environment` (product) types
 **Decided:** 2026-06-16
 **Recorded:** 2026-06-16
@@ -134,6 +139,10 @@ the relevant phase. Stubs carry `TODO(phase-N)` markers.
 
 **Reversal conditions.** Add a dependency as soon as its phase begins and (for
 wgpu) the §12 questions are resolved.
+
+**Update (2026-06-16).** The §12 questions are resolved (D-011); the wgpu gate is
+lifted — wgpu may now be introduced for the renderer. Tauri / rusqlite / Nyx
+remain deferred to their phases.
 
 ### D-006 Dual-license MIT OR Apache-2.0
 **Decided:** 2026-06-16
@@ -208,6 +217,9 @@ the `.ron` files.
 **Reversal conditions.** Add the LUT path if art direction needs grades that
 curves cannot express.
 
+**Confirmed (2026-06-16).** Externally confirmed via render-doc §12 Q4 (D-011);
+no LUT pipeline exists upstream to align with. Curves stand for v1.
+
 ### D-009 Project named Galene; FlowState retained as the internal working name
 **Decided:** 2026-06-16
 **Recorded:** 2026-06-16
@@ -281,3 +293,54 @@ left unscaled. The name heuristic is provisional and centralised in one function
 **Reversal conditions.** Replace the name heuristic with an explicit per-param
 scaling declaration in the scene format if a module's parameters don't fit the
 name buckets, or if the 0..1 clamp clips a legitimately-HDR parameter.
+
+### D-011 Galene is the canonical origin of the shared rendering stack
+**Decided:** 2026-06-16
+**Recorded:** 2026-06-16
+**Status:** Accepted
+**Authors:** Shane Hartley, Claude (web — repo inspection), Claude
+**Related:** D-003 (amended), D-005, D-008, F-010, render-doc §4/§9/§12
+
+**Context.** The render-doc §12 questions assumed Galene *reuses* Synaesthesia's
+renderer — D-003 ("keep the module trait byte-for-byte identical with
+Synaesthesia") and render-doc §4 ("reuse, do not rewrite"). Inspection of the
+actual repositories (Claude web, 2026-06-16) found **Synaesthesia is not built**:
+
+- No `Darian-Frey/Synaesthesia` repository exists.
+- The Nyx workspace contains only audio crates (`nyx-core`, `nyx-seq`,
+  `nyx-iced`, `nyx-cli`, `nyx-prelude`, `nyx-examples`, `nyx-wasm-demo`) — no
+  `nyx-vis` or `synaesthesia` crate.
+- Galene's `flowstate-visual` depends only on `flowstate-core`, `serde`, `ron`.
+- Even in the original Synaesthesia design, the modules lived *inside* the app
+  crate (`synaesthesia/src/modules/`), never a separate library.
+
+So there is no upstream to reuse or match. (Caveat: only pushed code was visible;
+an unpushed local crate would change this.)
+
+**Decision.** Galene is where the shared rendering stack is written first;
+Synaesthesia, when built, will depend on it — not the reverse. Concretely:
+- **The canonical `VisualModule` trait is defined here**, including the
+  render-into-target method currently deferred. There is nothing to be
+  "byte-for-byte identical" to; Galene sets the contract. Drafting that signature
+  is the immediate next prerequisite, ahead of any wgpu code.
+- **Shared modules are extracted into a *new* crate built from Galene**, not a
+  dependency added. Do **not** name it `nyx-vis` — that name is reserved for the
+  audio→visual data bridge (analyser / `VisFrame` / bands / beat / pitch). Use a
+  distinct name (e.g. `vis-modules`, `nyx-modules`).
+- **The per-layer RGBA16F offscreen compositor (render-doc §11 step 1) is
+  greenfield**, not an adaptation. Honour per-layer `resolution_scale` from the
+  start, and bake the GlassRain back-buffer-read path (render-doc §5.1) into the
+  compositor design rather than retrofitting it.
+- **Bloom is greenfield** (the `PostChain` knobs `bloom_threshold` /
+  `bloom_intensity` are already the right contract).
+- **Colour grade: lift/gamma/gain curves confirmed** (Q4 → D-008); no LUT for v1.
+
+**Consequences.** The render-doc §12 questions are resolved (Q1/Q2: greenfield
+here; Q3: build new; Q4: confirmed). The D-005 wgpu gate is lifted — wgpu may now
+be introduced for the renderer. D-003's intent (share modules, write once)
+stands, but its *direction* is reversed (Galene upstream); D-003 is amended. The
+new blocker is internal: design the canonical render-into-target trait.
+
+**Reversal conditions.** If a Synaesthesia / shared-module crate is later built
+independently and Galene should conform to *it* instead, revisit the "Galene is
+canonical" direction in a new entry.

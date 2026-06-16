@@ -71,3 +71,20 @@ it; verification tooling does not yet exist.
 **Related decisions.** D-001, D-002.
 **Related features.** F-001, F-009.
 **History.** From FlowState.md §12.3 and render-doc §6.
+
+## Determinism
+
+### AV-006 Wall-clock or RNG inside the renderer's per-frame path
+**Severity:** Major
+**Description.** Frames must be reproducible: grain, flicker, and any animation
+seed come from the **host**, not from `std::time` or RNG called inside a module's
+`render`. A module that reads the wall clock or rolls its own randomness makes
+frames non-deterministic, breaks reproducibility, and risks per-frame jitter.
+**Detection.** Partially structural — `FrameCtx` supplies `time_secs` and `seed`,
+so modules have no reason to reach for the clock; enforced by review for now. Not
+automated (would require a lint or an audit that no module imports `std::time` /
+`rand` in its render path).
+**Related decisions.** D-011 (the trait that carries the host-supplied frame inputs).
+**Related features.** F-010.
+**History.** Identified when the `VisualModule` trait / `FrameCtx` were defined
+(2026-06-16); long-standing Galene invariant (see CLAUDE.md).

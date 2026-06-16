@@ -11,7 +11,9 @@ Phases are append-only; mark Complete with an ISO date.
 - [x] Cargo workspace scaffold (`flowstate-core`, `-audio`, `-visual`, `-app`)
 - [x] `flowstate-core`: `Environment`, `EnvironmentState`, `RichnessMapping` (+ tests)
 - [x] RON scene format + loader, validated on `environments/rainy_library.ron`
-- [ ] `flowstate-visual`: wgpu pipeline + multi-target compositor (one layer)
+- [x] Canonical `VisualModule` GPU trait + wgpu `GpuContext` (D-011)
+- [x] `flowstate-visual`: offscreen compositor + ShaderCanvas layer (render-doc §11
+      step 1) — headless render verified by readback + `--example render_frame`
 - [ ] Per-layer DOF blur; EnvironmentDriver + richness wired to visible output
 - [ ] Post chain (vignette, grain, grade, bloom, tone-map)
 - [ ] GlassRain and VolumetricLight primitives
@@ -22,7 +24,9 @@ Phases are append-only; mark Complete with an ISO date.
 **Acceptance:** Open Galene → Rainy Library appears, rain plays through Nyx, the
 richness dial adjusts rain and visual depth, a 25-minute Pomodoro shifts the
 environment at interval end.
-**Blockers:** render-doc §12 open questions (Synaesthesia pipeline) — see DECISIONS D-003/D-005.
+**Blockers:** none external — render-doc §12 resolved (D-011): Synaesthesia isn't
+built, so the renderer is greenfield in Galene. Internal prerequisite: design the
+canonical `VisualModule` render-into-target trait before wgpu code.
 
 ## Phase 1 — Full environment library
 **Goal:** All twelve built-in environments complete and polished.
