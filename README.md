@@ -1,119 +1,74 @@
-# FlowState
+> **Status:** Active
+> **Provenance:** Shane Hartley (vision, domain expertise); Claude (architecture, implementation)
+> **Last reviewed:** 2026-06-16
+> **Why this status:** Phase 0 scaffold in progress — workspace builds, core systems implemented with tests, rendering/app layers stubbed.
+
+# Galene
 
 > *For minds that need a world to work in.*
 
-A sensory-immersion focus tool for **hyperphantasic** minds — and anyone with a
-rich inner world who finds that blank, minimal workspaces make focus *harder*,
-not easier.
+Galene is a sensory-immersion focus tool for **hyperphantasic** minds — and
+anyone with a rich inner world who finds that blank, minimal workspaces make
+focus *harder*, not easier.
 
-## The idea
+> **Naming:** Galene is the project name. The workspace crates (`flowstate-*`),
+> the binary, the `.flowenv` file format, and the design documents under
+> [docs/](docs/) retain the original working name **FlowState** (see
+> [DECISIONS.md](DECISIONS.md) D-009).
 
 Every focus tool is built on the same premise: strip the environment down to
-nothing. White walls, white noise, blank backgrounds. For most attentional
-profiles that is correct. For a hyperphantasic mind it is precisely wrong — an
-empty environment doesn't quiet the mind, it invites it to *generate* a richer
-inner world than the task at hand.
+nothing. For most attentional profiles that is correct. For a hyperphantasic
+mind it is precisely wrong — an empty environment doesn't quiet the mind, it
+invites it to *generate* a richer inner world than the task at hand. Galene
+does the opposite: it provides a slowly-evolving, sensorially rich external
+world — beautiful enough to satisfy the imagination's appetite for input, but
+slow and ambient enough never to compete with the work. Each **environment** is
+a coherent sensory world (composited visual layers + a generative ambient
+soundscape) with a subdued **work** state and a richer **break** state; a single
+**Richness** dial calibrates how much it presents.
 
-FlowState does the opposite. It provides a slowly-evolving, sensorially rich
-external world — beautiful enough to satisfy the imagination's appetite for
-input, but slow and ambient enough never to compete with the work. The inner
-simulation engine is fed just enough that it can rest, leaving the working mind
-free.
+## Quick Start
 
-Each **environment** is a coherent sensory world — composited visual layers plus
-a generative ambient soundscape — with a subdued **work** state and a richer
-**break** state. A single **Richness** dial calibrates how much the environment
-presents, and the world shifts between work and break states as an *environmental
-event* rather than an alarm.
-
-See [`docs/FlowState.md`](docs/FlowState.md) for the full product design and
-[`docs/flowstate_render_scene.md`](docs/flowstate_render_scene.md) for the
-rendering architecture.
-
-## Status
-
-**Early scaffold.** The workspace builds, the core systems (richness mapping,
-evolution cycle, scene format) are implemented with tests, and the rendering and
-app layers are stubbed pending the open questions below.
-
-```
-cargo build      # builds the workspace
-cargo test       # richness/evolution logic + scene-format parse test
-cargo run -p flowstate-app
+```bash
+cargo build                 # build the workspace
+cargo test                  # core logic + scene-format parse test
+cargo run -p flowstate-app  # placeholder binary (Tauri shell not yet wired)
 ```
 
-## Workspace layout
+## Build requirements
 
-| Crate | Role |
-|---|---|
-| [`flowstate-core`](flowstate-core/) | Environment definitions, the Richness system, evolution cycle, session engine, analytics |
-| [`flowstate-audio`](flowstate-audio/) | Nyx ambient-audio integration — richness → patch-parameter mapping |
-| [`flowstate-visual`](flowstate-visual/) | Scene rendering: layer compositing, the `EnvironmentDriver`, and the new primitives |
-| [`flowstate-app`](flowstate-app/) | Desktop application (Tauri shell — currently a placeholder binary) |
+- Rust 1.95+ (stable). No other toolchain required at this stage.
+- Heavy dependencies (wgpu, Tauri, SQLite, Nyx) are deferred per phase — see
+  [BUILD.md](BUILD.md).
+
+## Project structure
 
 ```
 Galene/
-├── docs/                       design documents
-├── environments/               scene definitions (.ron) — one file per environment
-├── flowstate-core/
-├── flowstate-audio/
-├── flowstate-visual/
-└── flowstate-app/
+├── docs/                  design documents (the authoritative domain spec)
+├── environments/          scene definitions (.ron) — one file per environment
+├── flowstate-core/        environment/richness/evolution/session/analytics types
+├── flowstate-audio/       Nyx ambient-audio integration
+├── flowstate-visual/      scene rendering: compositing, EnvironmentDriver, primitives
+└── flowstate-app/         desktop application (Tauri shell — placeholder binary)
 ```
 
-## Rendering model
+## Documentation
 
-Environments are rendered as **composited 2.5D layers** — a living painting with
-depth — not modelled 3D scenes. The aesthetic is impressionistic by design: a
-scaffold the imagination fills in, not a photorealistic scene that competes for
-attention. Per frame, each layer is drawn to its own HDR offscreen target,
-depth-of-field blurred, composited back-to-front, then finished with a post chain
-(bloom → colour grade → vignette → film grain → tone-map).
-
-An **environment is declarative data, not code** — the renderer is general, and
-each environment is a `.ron` file under [`environments/`](environments/). See
-[`environments/rainy_library.ron`](environments/rainy_library.ron) for the
-flagship example.
-
-## What's implemented vs. deferred
-
-**Implemented (with tests):**
-
-- `RichnessMapping` and work/break richness resolution (`flowstate-core::richness`)
-- The evolution cycle and Drift/Sine parameter envelopes
-- Per-frame layer parameter resolution (`flowstate-visual::layer`)
-- The RON scene format and loader — validated against `rainy_library.ron`
-
-**Deferred (stubbed, `TODO`-tagged):**
-
-- All wgpu GPU wiring in `flowstate-visual` (`renderer`, `compositor`, `dof`, `post`)
-- Live Nyx synthesis (the ambient engine currently records resolved parameters)
-- SQLite session persistence and the insights engine
-- The Tauri shell and TypeScript frontend
-
-### Open questions blocking the GPU work
-
-These depend on the **Synaesthesia** codebase, with which FlowState shares its
-renderer (render doc §12):
-
-1. Are Synaesthesia's visual modules a separate crate FlowState can depend on, or
-   do they need extracting into a shared `nyx-vis`-style crate?
-2. Does Synaesthesia's pipeline render to offscreen targets or directly to the
-   swapchain?
-3. Is there an existing bloom post-effect to lift into the FlowState post chain?
-4. Colour grade as LUT textures or lift/gamma/gain curves? (Scaffold uses curves.)
-
-## Roadmap
-
-| Phase | Goal |
-|---|---|
-| **0** | Core infrastructure + one environment (Rainy Library) + a simple focus timer |
-| **1** | The full twelve-environment library |
-| **2** | Session engine + analytics |
-| **3** | Work-mode integration (desktop background, dual monitor, overlay) |
-| **4** | Environment builder + sharing (`.flowenv`) |
-| **5** | Polish and shipping (itch.io) |
+- [Features](FEATURES.md) — capabilities, priorities, acceptance criteria
+- [Roadmap](ROADMAP.md) — phased development plan
+- [Architecture](ARCHITECTURE.md) — module boundaries, data flow, invariants
+- [Decisions](DECISIONS.md) — design-decision log with rationale
+- [Build instructions](BUILD.md)
+- [Attack vectors](ATTACK_VECTORS.md) — project-specific failure modes
+- [Bugs](BUGS.md) · [Improvements](IMPROVEMENTS.md)
+- [Changelog](CHANGELOG.md)
+- [CLAUDE.md](CLAUDE.md) — handoff for AI-assisted sessions
+- **Domain spec:** [docs/FlowState.md](docs/FlowState.md) (product design) and
+  [docs/flowstate_render_scene.md](docs/flowstate_render_scene.md) (rendering
+  architecture) — these serve as the project's `SPEC` (see DECISIONS D-007).
 
 ## License
 
-MIT OR Apache-2.0.
+Dual-licensed under MIT or Apache-2.0 — see [LICENSE-MIT](LICENSE-MIT) and
+[LICENSE-APACHE](LICENSE-APACHE).
