@@ -1,0 +1,103 @@
+// The Rainy Library — the flagship environment (FlowState §7.4, render doc §7).
+// Loaded by flowstate-visual::scene::Scene. The leading `Scene(` name is
+// optional in RON; fields map onto the Scene struct.
+Scene(
+    id: "rainy_library",
+    name: "The Rainy Library",
+    description: "A large reading room in an old library, rain on tall windows.",
+    tags: ["interior", "warm", "rain", "calm", "study"],
+
+    cycle_minutes: 20.0,
+
+    // Colour grade applied in the post chain — this is what makes
+    // the whole scene read as warm amber.
+    grade: LiftGammaGain(
+        lift:  (0.04, 0.02, 0.00),
+        gamma: (1.00, 0.96, 0.88),
+        gain:  (1.05, 1.00, 0.90),
+    ),
+
+    layers: [
+        Layer(
+            name: "base_atmosphere",
+            module: ShaderCanvas(shader: "warm_interior_gradient"),
+            blend: Normal,
+            depth_blur: 0.0,
+            base: { "warmth": 0.7, "darkness": 0.6 },
+            evolution: { "warmth": Drift(amount: 0.05, phase: 0.0) },
+            work:  { "darkness": 0.65 },
+            break: { "darkness": 0.45 },
+        ),
+        Layer(
+            name: "far_shelves",
+            module: GeometricField(preset: "bookshelf_silhouette"),
+            blend: Normal,
+            depth_blur: 0.85,            // heavily blurred — far back
+            resolution_scale: 0.5,       // render at half res, it's blurred anyway
+            base: { "density": 0.6 },
+            evolution: {},
+            work:  {}, break: {},
+        ),
+        Layer(
+            name: "window_storm",
+            module: GeometricField(preset: "tall_windows"),
+            blend: Normal,
+            depth_blur: 0.3,
+            base: { "frame_darkness": 0.8, "storm_visibility": 0.5 },
+            evolution: { "storm_visibility": Drift(amount: 0.15, phase: 1.7) },
+            work:  { "storm_visibility": 0.4 },
+            break: { "storm_visibility": 0.8 },   // lightning visible in break
+        ),
+        Layer(
+            name: "table_lamp",
+            module: GeometricField(preset: "reading_table"),
+            blend: Normal,
+            depth_blur: 0.0,             // foreground, sharp
+            base: { "lamp_on": 1.0 },
+            evolution: {}, work: {}, break: {},
+        ),
+        Layer(
+            name: "rain_on_glass",
+            module: GlassRain,
+            blend: Refraction,           // reads back buffer, see render doc §5.1
+            depth_blur: 0.0,
+            base: { "rain_density": 0.5, "refraction_strength": 0.3, "glass_fog": 0.2 },
+            evolution: { "rain_density": Sine(amount: 0.2, period_frac: 0.15) },
+            work:  { "rain_density": 0.35 },
+            break: { "rain_density": 0.9 },
+        ),
+        Layer(
+            name: "lamplight_pools",
+            module: VolumetricLight(sources: [
+                (pos: (0.32, 0.55), colour: (1.0, 0.75, 0.45), radius: 0.25),
+            ]),
+            blend: Additive,
+            depth_blur: 0.0,
+            base: { "intensity": 0.7, "flicker": 0.05 },
+            evolution: { "intensity": Drift(amount: 0.1, phase: 0.5) },
+            work:  { "intensity": 0.6 },
+            break: { "intensity": 0.85, "flicker": 0.12 },
+        ),
+        Layer(
+            name: "dust",
+            module: ParticleSystem(preset: "drifting_dust"),
+            blend: Additive,
+            depth_blur: 0.1,
+            base: { "density": 0.3, "drift_speed": 0.05 },
+            evolution: {},
+            work:  { "density": 0.2 },
+            break: { "density": 0.4 },
+        ),
+    ],
+
+    post: PostChain(
+        bloom_threshold: 0.8,
+        bloom_intensity: 0.5,
+        vignette_amount: 0.35,
+        vignette_softness: 0.6,
+        grain_amount: 0.04,
+        dof_far_haze: 0.3,
+    ),
+
+    audio_patch: "interior_rain.nyx",
+)

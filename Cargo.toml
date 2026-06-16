@@ -1,0 +1,36 @@
+# FlowState — workspace manifest
+#
+# A sensory-immersion focus tool for hyperphantasic minds.
+# See docs/FlowState.md for the product design and docs/flowstate_render_scene.md
+# for the rendering architecture.
+
+[workspace]
+resolver = "2"
+members = [
+    "flowstate-core",
+    "flowstate-audio",
+    "flowstate-visual",
+    "flowstate-app",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Shane Hartley"]
+license = "MIT OR Apache-2.0"
+
+[workspace.dependencies]
+# Internal crates
+flowstate-core = { path = "flowstate-core" }
+flowstate-audio = { path = "flowstate-audio" }
+flowstate-visual = { path = "flowstate-visual" }
+
+# Shared third-party
+serde = { version = "1", features = ["derive"] }
+ron = "0.8"
+
+# Deferred until the relevant phase / open questions are resolved:
+#   wgpu     — flowstate-visual rendering (needs Synaesthesia pipeline answers, render doc §12)
+#   tauri    — flowstate-app shell (Phase 0 app scaffold)
+#   rusqlite — flowstate-core analytics persistence (Phase 2)
+#   nyx      — flowstate-audio synthesis (external; availability TBC)

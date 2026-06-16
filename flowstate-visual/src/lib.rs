@@ -1,0 +1,27 @@
+//! # flowstate-visual
+//!
+//! Renders FlowState environments as composited 2.5D layers — a living painting
+//! with depth, not a modelled 3D scene (render doc §1). Each layer is drawn to
+//! an offscreen target, depth-of-field blurred, then composited back-to-front;
+//! a post chain (bloom → grade → vignette → grain → tone-map) finishes the frame.
+//!
+//! Parameters come from the [`driver::EnvironmentDriver`], which replaces
+//! Synaesthesia's audio-driven mapping graph.
+//!
+//! GPU wiring (wgpu) is deferred pending the render-doc §12 open questions; the
+//! modules below currently define the data model, scene format, and parameter
+//! resolution.
+
+pub mod compositor;
+pub mod dof;
+pub mod driver;
+pub mod evolution_visual;
+pub mod layer;
+pub mod modules;
+pub mod post;
+pub mod renderer;
+pub mod scene;
+
+pub use driver::EnvironmentDriver;
+pub use layer::{BlendMode, DriverContext, Layer};
+pub use scene::Scene;

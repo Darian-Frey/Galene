@@ -1,0 +1,12 @@
+# Rust
+/target
+**/*.rs.bk
+Cargo.lock.orig
+
+# Tauri / frontend (added when the app shell lands)
+node_modules/
+dist/
+
+# Editor / OS
+.DS_Store
+*.swp

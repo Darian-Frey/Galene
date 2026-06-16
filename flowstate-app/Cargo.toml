@@ -1,0 +1,20 @@
+[package]
+name = "flowstate-app"
+description = "FlowState desktop application (Tauri shell — currently a placeholder binary)."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "flowstate"
+path = "src/main.rs"
+
+[dependencies]
+flowstate-core.workspace = true
+flowstate-audio.workspace = true
+flowstate-visual.workspace = true
+
+# tauri is deferred to the Phase 0 app scaffold. For now this is a plain binary
+# so the workspace builds without the Tauri / Node frontend toolchain. The
+# `frontend/` tree holds the eventual TypeScript UI (FlowState §13.2).

@@ -1,0 +1,17 @@
+[package]
+name = "flowstate-visual"
+description = "FlowState scene rendering: layer compositing, the EnvironmentDriver, and the new primitives."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+flowstate-core.workspace = true
+serde.workspace = true
+ron.workspace = true
+
+# wgpu is deferred until the Synaesthesia pipeline questions are answered
+# (render doc §12: shared module crate arrangement, offscreen targets, bloom
+# reuse). The types and scene format are scaffolded here; the GPU wiring in
+# renderer.rs / compositor.rs / dof.rs / post lands once those are resolved.

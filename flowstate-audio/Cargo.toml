@@ -1,0 +1,15 @@
+[package]
+name = "flowstate-audio"
+description = "Nyx ambient-audio integration for FlowState: richness → patch-parameter mapping."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+flowstate-core.workspace = true
+serde.workspace = true
+
+# nyx (parameterised ambient synthesis) is an external dependency whose
+# availability is still to be confirmed — see docs/FlowState.md §12. Until it is
+# wired, the ambient engine records resolved parameters rather than driving Nyx.

@@ -1,0 +1,11 @@
+[package]
+name = "flowstate-core"
+description = "Environment definitions, richness mapping, session engine, and analytics for FlowState."
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+serde.workspace = true
+ron.workspace = true
