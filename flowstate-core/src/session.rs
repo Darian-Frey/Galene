@@ -17,8 +17,9 @@ pub enum SessionType {
         long_break_min: f32,
         intervals_until_long: u32,
     },
-    /// One long work block with a single break at the midpoint.
-    DeepWork { total_min: f32 },
+    /// One long work block (`total_min` of work) with one break of `break_min`
+    /// at the midpoint.
+    DeepWork { total_min: f32, break_min: f32 },
     /// No timer structure; duration tracked but not constrained.
     FreeFlow,
     /// User-defined, saved under a name.
@@ -51,6 +52,8 @@ pub enum SessionEvent {
     EnteredBreak { long: bool },
     /// A break ended; the session returned to work.
     EnteredWork,
+    /// The session reached its end (Deep Work after the second half).
+    Completed,
 }
 
 /// A live focus session.
@@ -66,6 +69,8 @@ pub struct FocusSession {
     /// Seconds elapsed in the current interval.
     pub elapsed_secs: f32,
     pub paused: bool,
+    /// True once the session has reached a definite end (Deep Work).
+    pub completed: bool,
 }
 
 impl FocusSession {
@@ -82,6 +87,7 @@ impl FocusSession {
             intervals_completed: 0,
             elapsed_secs: 0.0,
             paused: false,
+            completed: false,
         }
     }
 
@@ -91,10 +97,10 @@ impl FocusSession {
     }
 
     /// Advance the session by `dt_secs`. Returns any interval boundary crossed.
-    /// A paused session does not advance. Free Flow is untimed (the elapsed time
-    /// accrues but no boundary fires); Deep Work interval handling is deferred.
+    /// A paused or completed session does not advance. Free Flow is untimed (the
+    /// elapsed time accrues but no boundary fires).
     pub fn tick(&mut self, dt_secs: f32) -> SessionEvent {
-        if self.paused {
+        if self.paused || self.completed {
             return SessionEvent::None;
         }
         self.elapsed_secs += dt_secs;
@@ -113,8 +119,10 @@ impl FocusSession {
                 ..
             } => self.tick_intervals(work_min, break_min, break_min, 0),
             SessionType::FreeFlow => SessionEvent::None,
-            // TODO(phase-2): Deep Work — single long block with a midpoint break.
-            SessionType::DeepWork { .. } => SessionEvent::None,
+            SessionType::DeepWork {
+                total_min,
+                break_min,
+            } => self.tick_deep_work(total_min, break_min),
         }
     }
 
@@ -151,6 +159,41 @@ impl FocusSession {
                     break_min
                 };
                 if self.elapsed_secs >= break_len * 60.0 {
+                    self.elapsed_secs = 0.0;
+                    self.state = WorkBreakState::Work;
+                    SessionEvent::EnteredWork
+                } else {
+                    SessionEvent::None
+                }
+            }
+        }
+    }
+
+    /// Deep Work: work the first half of `total_min`, take one `break_min`
+    /// break at the midpoint, work the second half, then complete. The break
+    /// is additional to `total_min` (which is work time only).
+    fn tick_deep_work(&mut self, total_min: f32, break_min: f32) -> SessionEvent {
+        let half_secs = total_min * 60.0 / 2.0;
+        match self.state {
+            WorkBreakState::Work => {
+                if self.elapsed_secs >= half_secs {
+                    self.intervals_completed += 1;
+                    self.elapsed_secs = 0.0;
+                    if self.intervals_completed == 1 {
+                        // midpoint reached → take the break
+                        self.state = WorkBreakState::Break;
+                        SessionEvent::EnteredBreak { long: false }
+                    } else {
+                        // second half done → session complete
+                        self.completed = true;
+                        SessionEvent::Completed
+                    }
+                } else {
+                    SessionEvent::None
+                }
+            }
+            WorkBreakState::Break => {
+                if self.elapsed_secs >= break_min * 60.0 {
                     self.elapsed_secs = 0.0;
                     self.state = WorkBreakState::Work;
                     SessionEvent::EnteredWork
@@ -215,5 +258,33 @@ mod tests {
         let mut s = FocusSession::new(SessionType::FreeFlow, "rainy_library".into(), None);
         assert_eq!(s.tick(3600.0), SessionEvent::None);
         assert_eq!(s.elapsed_secs, 3600.0);
+    }
+
+    #[test]
+    fn deep_work_breaks_at_midpoint_then_completes() {
+        // 4-minute block, 1-minute midpoint break → halves of 2 minutes each.
+        let mut s = FocusSession::new(
+            SessionType::DeepWork {
+                total_min: 4.0,
+                break_min: 1.0,
+            },
+            "rainy_library".into(),
+            None,
+        );
+        // First half (2 min) → midpoint break.
+        assert_eq!(s.tick(119.0), SessionEvent::None);
+        assert_eq!(s.tick(1.0), SessionEvent::EnteredBreak { long: false });
+        assert_eq!(s.state, WorkBreakState::Break);
+        assert_eq!(s.intervals_completed, 1);
+        // Break (1 min) → second half.
+        assert_eq!(s.tick(60.0), SessionEvent::EnteredWork);
+        assert_eq!(s.state, WorkBreakState::Work);
+        // Second half (2 min) → complete.
+        assert_eq!(s.tick(119.0), SessionEvent::None);
+        assert_eq!(s.tick(1.0), SessionEvent::Completed);
+        assert!(s.completed);
+        assert_eq!(s.intervals_completed, 2);
+        // A completed session does not advance further.
+        assert_eq!(s.tick(600.0), SessionEvent::None);
     }
 }

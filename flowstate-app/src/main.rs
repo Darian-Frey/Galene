@@ -37,6 +37,7 @@ fn main() {
 
     demo_richness_dial(&mut driver);
     demo_session(&mut driver, &mut app);
+    demo_deep_work();
 
     println!(
         "\nAnalytics store now holds {} session(s).",
@@ -110,7 +111,8 @@ fn demo_session(driver: &mut EnvironmentDriver, app: &mut AppState) {
                 driver.set_state(WorkBreakState::Work);
                 println!("[{}] ↻ break over → WORK resumes", fmt(t));
             }
-            SessionEvent::None => {}
+            // A Pomodoro loops indefinitely; it never completes on its own.
+            SessionEvent::None | SessionEvent::Completed => {}
         }
 
         driver.advance(dt);
@@ -148,6 +150,36 @@ fn demo_session(driver: &mut EnvironmentDriver, app: &mut AppState) {
         interruptions: 0,
         quality: None,
     });
+}
+
+/// Run a Deep Work session — one long block with a single midpoint break — and
+/// print its boundaries through to completion.
+fn demo_deep_work() {
+    println!("\nDeep Work: 90-minute block · 5-minute midpoint break · intention \"chapter 3\"");
+    let mut session = FocusSession::new(
+        SessionType::DeepWork {
+            total_min: 90.0,
+            break_min: 5.0,
+        },
+        "rainy_library".into(),
+        Some("chapter 3".into()),
+    );
+
+    let dt = 30.0_f32;
+    let guard = 200.0 * 60.0; // safety bound
+    let mut t = 0.0_f32;
+    while t < guard {
+        match session.tick(dt) {
+            SessionEvent::EnteredBreak { .. } => println!("  [{}] midpoint → BREAK", fmt(t)),
+            SessionEvent::EnteredWork => println!("  [{}] break over → second half", fmt(t)),
+            SessionEvent::Completed => {
+                println!("  [{}] ■ session COMPLETE", fmt(t));
+                break;
+            }
+            SessionEvent::None => {}
+        }
+        t += dt;
+    }
 }
 
 /// Clone the `rain_on_glass` layer out of the driver's scene for repeated resolution.

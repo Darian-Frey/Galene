@@ -18,9 +18,10 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
 - `flowstate-core`: **implemented + tested** — `RichnessMapping::from_richness`,
   `effective_richness` (work 0–0.5 / break 0.5–1.0), `EvolutionState`. Types for
   `Environment`, `SessionType`/`FocusSession`, `SessionRecord`/`AnalyticsStore`,
-  RON (de)serialisation. `FocusSession::tick` interval logic (Pomodoro / Custom /
-  Free Flow) and `EvolutionConfig::active_events` (`Always` only) implemented +
-  tested. Deep Work ticking, the insights engine, and SQLite persistence remain
+  RON (de)serialisation. `FocusSession::tick` interval logic for all four session
+  types (Pomodoro / Custom / Free Flow / Deep Work, the last emitting
+  `SessionEvent::Completed`) and `EvolutionConfig::active_events` (`Always` only)
+  implemented + tested. The insights engine and SQLite persistence remain
   stubbed (`TODO`).
 - `flowstate-visual`: scene model + RON loader (`Scene`, `Layer`, Drift/Sine
   evolution) implemented; `rainy_library.ron` parse-tested. `EnvironmentDriver`

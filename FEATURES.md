@@ -59,7 +59,9 @@ richness helps focus where minimalism fails.
 - Deep Work (single long block, midpoint break), Free Flow (untimed), Custom (saved).
 - Pause/resume via hotkey; interruptions logged without judgement.
 - End-of-session card with optional 1–5 quality rating.
-**Status:** In progress (`SessionType`/`FocusSession` types defined; ticking stubbed)
+**Status:** In progress (interval ticking for all four session types implemented +
+tested; pause/resume done; setup flow, interruption logging, and the end-of-session
+card are Phase 2 UI)
 
 ### F-006 Session analytics and insights engine
 **Priority:** Should

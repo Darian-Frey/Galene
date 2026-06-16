@@ -18,8 +18,9 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   header, FEATURES, ROADMAP, ARCHITECTURE, DECISIONS (D-001…D-009), BUILD,
   ATTACK_VECTORS (AV-001…AV-005), BUGS, IMPROVEMENTS, CLAUDE, dual LICENSE.
 
-- `FocusSession::tick` — work/break interval logic for Pomodoro, Custom, and
-  Free Flow sessions, emitting `SessionEvent` boundaries (F-005).
+- `FocusSession::tick` — work/break interval logic for Pomodoro, Custom, Free
+  Flow, and Deep Work (single block with a midpoint break, emitting
+  `SessionEvent::Completed`), emitting `SessionEvent` boundaries (F-005).
 - `EnvironmentDriver::advance` — ticks the evolution cycle and animates the
   work↔break `state_blend` over the transition duration (F-004).
 - `resolve_layer_params` richness-scaling table — the user dial now scales
