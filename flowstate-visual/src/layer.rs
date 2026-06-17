@@ -133,7 +133,12 @@ fn richness_scale_for(key: &str, m: &RichnessMapping) -> f32 {
     let k = key.to_ascii_lowercase();
     let has = |needles: &[&str]| needles.iter().any(|n| k.contains(n));
 
-    if has(&["density", "particle", "rain", "snow", "dust", "leaf", "leaves"]) {
+    // Precipitation is intensity, not a particle count — it should stay present
+    // even at low richness (the Rainy Library is always raining), so it uses the
+    // gentler effect curve rather than the quadratic particle curve.
+    if has(&["rain", "snow"]) {
+        m.effect_intensity
+    } else if has(&["density", "particle", "dust", "leaf", "leaves"]) {
         m.particle_density
     } else if has(&["intensity", "glow", "bloom", "flicker", "effect", "brightness"]) {
         m.effect_intensity
@@ -194,11 +199,22 @@ mod tests {
 
     #[test]
     fn richness_dial_scales_density_params() {
-        let l = layer_with(&[("rain_density", 0.9)], &[], &[]);
-        let low = resolve_layer_params(&l, &ctx(0.0, WorkBreakState::Work, 0.0))["rain_density"];
-        let high = resolve_layer_params(&l, &ctx(1.0, WorkBreakState::Break, 1.0))["rain_density"];
+        // A particle-count param is crushed toward zero at low richness (quadratic).
+        let particles = layer_with(&[("particle_density", 0.9)], &[], &[]);
+        let low =
+            resolve_layer_params(&particles, &ctx(0.0, WorkBreakState::Work, 0.0))["particle_density"];
+        let high =
+            resolve_layer_params(&particles, &ctx(1.0, WorkBreakState::Break, 1.0))["particle_density"];
         assert!(low < high);
-        assert!(low < 0.05, "rain near-zero at min richness, got {low}");
+        assert!(low < 0.05, "particles near-zero at min richness, got {low}");
+
+        // Rain is precipitation intensity: it scales with the dial but stays
+        // present even at minimum richness (gentler curve, never crushed to ~0).
+        let rain = layer_with(&[("rain_density", 0.9)], &[], &[]);
+        let rlow = resolve_layer_params(&rain, &ctx(0.0, WorkBreakState::Work, 0.0))["rain_density"];
+        let rhigh = resolve_layer_params(&rain, &ctx(1.0, WorkBreakState::Break, 1.0))["rain_density"];
+        assert!(rlow < rhigh);
+        assert!(rlow > 0.1, "rain should stay present at low richness, got {rlow}");
     }
 
     #[test]

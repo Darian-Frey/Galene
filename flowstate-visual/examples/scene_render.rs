@@ -39,18 +39,18 @@ fn main() {
     let mut renderer =
         SceneRenderer::new(&gpu, w, h, wgpu::TextureFormat::Rgba8UnormSrgb, &driver.scene);
 
-    // Work state, gentle richness (0.35).
-    driver.richness = 0.35;
+    // Work state at the viewer's default richness, mid-animation (t = 5s).
+    driver.richness = 0.45;
     driver.state = WorkBreakState::Work;
     driver.state_blend = 0.0;
-    let work = render_scene_to_rgba8(&gpu, w, h, &mut renderer, &driver, 0.0, 0);
+    let work = render_scene_to_rgba8(&gpu, w, h, &mut renderer, &driver, 5.0, 0);
     write_ppm("scene_work.ppm", w, h, &work);
 
     // Break state, high richness (0.9).
     driver.richness = 0.9;
     driver.state = WorkBreakState::Break;
     driver.state_blend = 1.0;
-    let brk = render_scene_to_rgba8(&gpu, w, h, &mut renderer, &driver, 0.0, 0);
+    let brk = render_scene_to_rgba8(&gpu, w, h, &mut renderer, &driver, 5.0, 0);
     write_ppm("scene_break.ppm", w, h, &brk);
 
     println!("Wrote scene_work.ppm and scene_break.ppm — the dial/state drive the difference.");

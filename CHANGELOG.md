@@ -69,11 +69,16 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
 
 ### Changed
 - **GlassRain rewrite** — replaced the coarse value-noise refraction (blocky)
-  with a procedural grid-cell droplet model after Steinrucken's "Heartfelt" and
-  Lagarde's "Water drop" work: hashed per-cell drops slide down (sawtooth) with a
-  sine-of-sine wobble and leave trails; the drop height-field's gradient refracts
-  the backdrop; the glass is frosted (3×3 blur) everywhere and cleared through the
-  drops. Reads as real rain on glass. Follow-ups in IMP-003. (F-001)
+  with a procedural water height-field after Steinrucken's "Heartfelt" and
+  Lagarde's "Water drop" work: a dense field of hashed static droplets (count
+  scales with rain), sliding drops with trails, and wobbling vertical runnels.
+  The height-field gradient lens-refracts the backdrop; the glass is frosted
+  (5×5 blur) and clear through the water, with a specular rim on the drops. Reads
+  as real rain on glass — light scatter in work, heavy coverage in break.
+  Follow-ups in IMP-003. (F-001)
+- Rain density now maps to the **intensity** curve, not the quadratic particle
+  curve (D-010): precipitation should stay present at low richness (the Library
+  is always raining), so the work state shows visible light rain.
 - Resolved the render-doc §12 rendering questions (D-011). Repo inspection found
   Synaesthesia is not built (no repo/crate; the Nyx workspace is audio-only), so
   Galene is the **canonical origin** of the shared rendering stack: the
@@ -83,3 +88,10 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
 - Project renamed to **Galene** (branding only — D-009). Crate names
   (`flowstate-*`), the binary, the `.flowenv` format, and the design docs retain
   the original working name FlowState.
+
+### Fixed
+- BUG-001: the post-chain film grain's `sin`-based hash aliased into a full-screen
+  cross-hatch weave (looked like broken rain); replaced with a `fract`-based hash
+  (real white noise). Same pass tuned GlassRain so light rain shows in the work
+  state, gated the static drops (no lattice), and lowered the far-shelf
+  silhouette frequencies (no moiré).

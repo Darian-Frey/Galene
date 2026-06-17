@@ -61,7 +61,7 @@ Scene(
             module: GlassRain,
             blend: Refraction,           // reads back buffer, see render doc §5.1
             depth_blur: 0.0,
-            base: { "rain_density": 0.5, "refraction_strength": 0.3, "glass_fog": 0.2 },
+            base: { "rain_density": 0.5, "refraction_strength": 0.4, "glass_fog": 0.35 },
             evolution: { "rain_density": Sine(amount: 0.2, period_frac: 0.15) },
             work:  { "rain_density": 0.35 },
             break: { "rain_density": 0.9 },
@@ -95,7 +95,7 @@ Scene(
         bloom_intensity: 0.5,
         vignette_amount: 0.35,
         vignette_softness: 0.6,
-        grain_amount: 0.04,
+        grain_amount: 0.02,
         dof_far_haze: 0.3,
     ),
 

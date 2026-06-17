@@ -70,20 +70,16 @@ Hence deferred, not applied.
 **Found:** 2026-06-17 (the rain rewrite)
 **Location:** [flowstate-visual/src/shaders/glass_rain.wgsl](flowstate-visual/src/shaders/glass_rain.wgsl)
 **Effort:** medium
-**Description.** Two things from the Heartfelt-style rewrite: (a) the refraction
-normal is the gradient of the drop field, computed by evaluating `drops()` three
-times per pixel (~27 drop-layer evals/pixel) — the dominant cost and a 60fps risk
-(AV-001), especially with GlassRain reused across five environments; (b) at low
-rain density the static-drop layer (`uv*40` grid) shows a faint regular lattice
-in dark areas (visible in the work-state frame).
-**Proposal.** (a) Evaluate `drops()` once and derive the normal more cheaply — an
+**Description.** The refraction normal is the gradient of the drop field,
+computed by evaluating `drops()` three times per pixel (~27 drop-layer
+evals/pixel) — the dominant cost and a 60fps risk (AV-001), especially with
+GlassRain reused across five environments. (The static-drop *lattice* sub-item is
+now addressed — the layer is gated/sparser — so only the perf item remains.)
+**Proposal.** Evaluate `drops()` once and derive the normal more cheaply — an
 analytic gradient, or render the drop height-field to a small offscreen target
-once per frame and sample it (also lets bloom/DOF reuse it). (b) Scale or fade
-the static-drop contribution by density and/or jitter the cell scale so the grid
-doesn't read as a lattice.
+once per frame and sample it (also lets bloom/DOF reuse it).
 **Trade-offs.** An analytic gradient is more shader algebra and easy to get
-subtly wrong; the height-field-to-texture route adds a pass + target. The lattice
-is only visible at low density in shadow, so (b) is cheap polish, not urgent.
+subtly wrong; the height-field-to-texture route adds a pass + target.
 **Notes.** Relates to AV-001 (frame budget). The 3× evaluation mirrors the
 reference shader, which is also heavy; worth profiling on the ThinkPad P15 first.
 

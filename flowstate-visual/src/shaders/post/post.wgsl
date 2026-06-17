@@ -15,8 +15,12 @@ struct PostU {
 };
 @group(0) @binding(3) var<uniform> u: PostU;
 
+// Dave Hoskins' hash12 — fract/dot based, no `sin` (which aliases into a
+// structured diagonal weave at grain frequencies), so this gives real white noise.
 fn hash21(p: vec2<f32>) -> f32 {
-    return fract(sin(dot(p, vec2<f32>(127.1, 311.7))) * 43758.5453);
+    var p3 = fract(vec3<f32>(p.x, p.y, p.x) * 0.1031);
+    p3 = p3 + dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
 }
 
 @fragment

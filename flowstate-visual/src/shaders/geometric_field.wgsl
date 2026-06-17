@@ -8,13 +8,15 @@ struct U {
 };
 @group(0) @binding(0) var<uniform> u: U;
 
-// Far bookshelves: vertical book-to-book variation with shelf lines, dark mass.
+// Far bookshelves: a soft dark mass with gentle low-frequency vertical
+// variation. This layer is heavily DOF-blurred, so the shapes must stay
+// low-frequency — high frequencies alias into a moiré at the layer's reduced
+// resolution. A faint shelf banding, kept soft to avoid hard-edge aliasing.
 fn bookshelf(uv: vec2<f32>, density: f32) -> vec4<f32> {
-    let book = 0.5 + 0.5 * sin(uv.x * 130.0) * sin(uv.x * 37.0);
-    let shelf = step(0.9, fract(uv.y * 5.0));
-    let mass = density * (0.65 + 0.35 * book);
-    let a = clamp(mass - shelf * 0.35, 0.0, 1.0);
-    return vec4<f32>(vec3<f32>(0.06, 0.05, 0.04), a);
+    let book = 0.6 + 0.4 * sin(uv.x * 16.0 + sin(uv.x * 4.3) * 2.0);
+    let shelf = 0.85 + 0.15 * sin(uv.y * 18.0);
+    let mass = density * book * shelf;
+    return vec4<f32>(vec3<f32>(0.06, 0.05, 0.04), clamp(mass, 0.0, 1.0));
 }
 
 // Tall windows: three panes with dark mullions; panes glow with the cool storm.

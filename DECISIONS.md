@@ -281,10 +281,17 @@ richness dial adjusts the rain").
 
 **Decision.** Per key: baseline = work/break lerp if authored, else `base`; add
 evolution drift; multiply by a richness factor selected by name
-(`richness_scale_for` — density/particle/rain → `particle_density`,
+(`richness_scale_for` — particle/density/dust/leaf → `particle_density`,
 intensity/glow/bloom → `effect_intensity`, motion/speed → `motion_amount`,
 saturation/colour → `colour_saturation`, detail → `visual_detail`; everything
 else unscaled). Result clamped to 0..1.
+
+**Update (2026-06-18).** Precipitation (`rain` / `snow`) was moved out of the
+`particle_density` (quadratic) bucket into `effect_intensity`: rain is an
+intensity that should stay present even at low richness (the Rainy Library is
+always raining), whereas the quadratic curve crushed it to ~0 in the work state
+and the rain effectively vanished. Tuning within the provisional heuristic, not a
+new decision.
 
 **Consequences.** The dial visibly scales authored params (rain, particles,
 light). Structural params (darkness, warmth, storm visibility) are deliberately
