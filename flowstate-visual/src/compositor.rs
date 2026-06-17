@@ -214,7 +214,7 @@ impl Compositor {
     pub fn render_frame(
         &self,
         gpu: &crate::gpu::GpuContext,
-        modules: &mut [&mut dyn VisualModule],
+        modules: &mut [&mut (dyn VisualModule + '_)],
         params: &[ResolvedParams],
         time_secs: f32,
         seed: u32,

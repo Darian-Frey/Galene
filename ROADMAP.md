@@ -16,7 +16,10 @@ Phases are append-only; mark Complete with an ISO date.
       step 1) — headless render verified by readback + `--example render_frame`
 - [x] Per-layer DOF blur + multi-layer compositing with blend modes (step 2) —
       verified by unit test + `--example dof_layers`
-- [ ] EnvironmentDriver + richness wired to visible output (`ModuleSpec`→module factory)
+- [x] EnvironmentDriver + richness wired to visible output via a
+      `ModuleSpec`→module factory + `SceneRenderer` (step 3) — the `rainy_library.ron`
+      scene renders and the dial/state change it (`--example scene_render`)
+- [ ] Post chain (step 4): HDR accumulation, bloom, colour grade, vignette, grain, tone-map
 - [ ] Post chain (vignette, grain, grade, bloom, tone-map)
 - [ ] GlassRain and VolumetricLight primitives
 - [ ] `flowstate-audio`: Nyx integration with `interior_rain.nyx`

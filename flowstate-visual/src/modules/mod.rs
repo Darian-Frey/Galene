@@ -10,11 +10,14 @@
 //! The two new primitives — [`glass_rain`] and [`volumetric_light`] — live here.
 
 pub mod glass_rain;
+pub mod placeholder;
 pub mod shader_canvas;
 pub mod volumetric_light;
 
 use serde::{Deserialize, Serialize};
 
+pub use placeholder::PlaceholderModule;
+pub use shader_canvas::ShaderCanvasModule;
 pub use volumetric_light::LightSource;
 
 use crate::layer::ResolvedParams;
@@ -85,6 +88,47 @@ pub trait VisualModule {
     /// GlassRain overrides this to `true` (render doc §5.1).
     fn reads_backdrop(&self) -> bool {
         false
+    }
+}
+
+/// Build the runtime module for a scene layer's [`ModuleSpec`].
+///
+/// `ShaderCanvas` is implemented; the others render as a tinted
+/// [`PlaceholderModule`] until their real modules land (render doc §5, §11
+/// steps 5–6). The tints are rough scene-role hints (dark architecture, warm
+/// light, cool glass) so a composited scene is legible meanwhile.
+pub fn build_module(spec: &ModuleSpec, init: &ModuleInit) -> Box<dyn VisualModule> {
+    match spec {
+        ModuleSpec::ShaderCanvas { shader } => {
+            Box::new(ShaderCanvasModule::new(init, shader))
+        }
+        ModuleSpec::GeometricField { .. } => {
+            Box::new(PlaceholderModule::new(init, "GeometricField", [0.12, 0.12, 0.16]))
+        }
+        ModuleSpec::ParticleSystem { .. } => {
+            Box::new(PlaceholderModule::new(init, "ParticleSystem", [0.85, 0.85, 0.95]))
+        }
+        ModuleSpec::FluidField => {
+            Box::new(PlaceholderModule::new(init, "FluidField", [0.30, 0.30, 0.40]))
+        }
+        ModuleSpec::Terrain => {
+            Box::new(PlaceholderModule::new(init, "Terrain", [0.20, 0.22, 0.24]))
+        }
+        ModuleSpec::VoronoiField => {
+            Box::new(PlaceholderModule::new(init, "VoronoiField", [0.40, 0.30, 0.20]))
+        }
+        ModuleSpec::CellularAutomata => {
+            Box::new(PlaceholderModule::new(init, "CellularAutomata", [0.30, 0.30, 0.30]))
+        }
+        ModuleSpec::WaveformRibbon => {
+            Box::new(PlaceholderModule::new(init, "WaveformRibbon", [0.40, 0.50, 0.60]))
+        }
+        ModuleSpec::GlassRain => {
+            Box::new(PlaceholderModule::new(init, "GlassRain", [0.60, 0.70, 0.80]))
+        }
+        ModuleSpec::VolumetricLight { .. } => {
+            Box::new(PlaceholderModule::new(init, "VolumetricLight", [1.0, 0.75, 0.45]))
+        }
     }
 }
 

@@ -7,9 +7,11 @@
 //! this stack is greenfield in Galene.
 
 use crate::compositor::{CompositeLayer, Compositor, LAYER_FORMAT};
+use crate::driver::EnvironmentDriver;
 use crate::gpu::GpuContext;
 use crate::layer::{BlendMode, ResolvedParams};
-use crate::modules::{ModuleInit, VisualModule};
+use crate::modules::{build_module, ModuleInit, VisualModule};
+use crate::scene::Scene;
 
 /// Build a `ModuleInit` for constructing modules that render into a layer target
 /// (RGBA16F).
@@ -28,7 +30,7 @@ pub fn render_layers_to_rgba8(
     gpu: &GpuContext,
     width: u32,
     height: u32,
-    modules: &mut [&mut dyn VisualModule],
+    modules: &mut [&mut (dyn VisualModule + '_)],
     specs: &[CompositeLayer],
     params: &[ResolvedParams],
 ) -> Vec<u8> {
@@ -72,6 +74,98 @@ pub fn render_module_to_rgba8(
     }];
     let mut modules: [&mut dyn VisualModule; 1] = [module];
     render_layers_to_rgba8(gpu, width, height, &mut modules, &specs, std::slice::from_ref(params))
+}
+
+/// Renders a whole scene: a compositor sized to the scene's layers plus the
+/// runtime module per layer (built via [`build_module`]). Parameters come from
+/// an [`EnvironmentDriver`] each frame, so the richness dial, work/break state,
+/// and evolution cycle drive the visible output (render-doc §11 step 3).
+///
+/// Build this from the same scene the driver owns (`&driver.scene`) so the
+/// per-layer modules line up with the driver's resolved parameters.
+pub struct SceneRenderer {
+    compositor: Compositor,
+    modules: Vec<Box<dyn VisualModule>>,
+}
+
+impl SceneRenderer {
+    pub fn new(
+        gpu: &GpuContext,
+        width: u32,
+        height: u32,
+        output_format: wgpu::TextureFormat,
+        scene: &Scene,
+    ) -> Self {
+        let specs: Vec<CompositeLayer> = scene
+            .layers
+            .iter()
+            .map(|l| CompositeLayer {
+                resolution_scale: l.resolution_scale,
+                depth_blur: l.depth_blur,
+                blend: l.blend,
+            })
+            .collect();
+        let compositor = Compositor::new(&gpu.device, width, height, output_format, &specs);
+
+        let init = module_init(gpu);
+        let modules = scene
+            .layers
+            .iter()
+            .map(|l| build_module(&l.module, &init))
+            .collect();
+
+        Self {
+            compositor,
+            modules,
+        }
+    }
+
+    /// Render one frame, resolving each layer's parameters from `driver`.
+    pub fn render(
+        &mut self,
+        gpu: &GpuContext,
+        driver: &EnvironmentDriver,
+        time_secs: f32,
+        seed: u32,
+        output_view: &wgpu::TextureView,
+    ) {
+        let params = driver.resolve_all();
+        let mut mods: Vec<&mut dyn VisualModule> =
+            self.modules.iter_mut().map(|b| b.as_mut()).collect();
+        self.compositor
+            .render_frame(gpu, &mut mods, &params, time_secs, seed, output_view);
+    }
+}
+
+/// Render a scene through a [`SceneRenderer`] (built with `Rgba8Unorm` output)
+/// and read it back as tightly-packed RGBA8.
+pub fn render_scene_to_rgba8(
+    gpu: &GpuContext,
+    width: u32,
+    height: u32,
+    renderer: &mut SceneRenderer,
+    driver: &EnvironmentDriver,
+    time_secs: f32,
+    seed: u32,
+) -> Vec<u8> {
+    let device = &gpu.device;
+    let output_tex = device.create_texture(&wgpu::TextureDescriptor {
+        label: Some("scene.output"),
+        size: wgpu::Extent3d {
+            width,
+            height,
+            depth_or_array_layers: 1,
+        },
+        mip_level_count: 1,
+        sample_count: 1,
+        dimension: wgpu::TextureDimension::D2,
+        format: wgpu::TextureFormat::Rgba8Unorm,
+        usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+        view_formats: &[],
+    });
+    let output_view = output_tex.create_view(&wgpu::TextureViewDescriptor::default());
+    renderer.render(gpu, driver, time_secs, seed, &output_view);
+    read_texture_rgba8(gpu, &output_tex, width, height)
 }
 
 /// Copy an RGBA8 texture into a mappable buffer and read it back as
@@ -175,5 +269,35 @@ mod tests {
             "expected a vertical gradient (bottom warmer than top)",
         );
         assert!(px.iter().any(|&b| b > 0), "frame is entirely black");
+    }
+
+    #[test]
+    fn richness_dial_changes_the_rendered_scene() {
+        let Some(gpu) = GpuContext::new_headless() else {
+            eprintln!("no GPU adapter — skipping scene render test");
+            return;
+        };
+
+        let scene =
+            Scene::from_ron(include_str!("../../environments/rainy_library.ron")).unwrap();
+        let mut driver = EnvironmentDriver::new(scene);
+        let (w, h) = (96u32, 54u32);
+        let mut sr = SceneRenderer::new(&gpu, w, h, wgpu::TextureFormat::Rgba8Unorm, &driver.scene);
+
+        // Low richness in the work state.
+        driver.richness = 0.05;
+        driver.state = flowstate_core::WorkBreakState::Work;
+        driver.state_blend = 0.0;
+        let low = render_scene_to_rgba8(&gpu, w, h, &mut sr, &driver, 0.0, 0);
+
+        // High richness in the break state.
+        driver.richness = 1.0;
+        driver.state = flowstate_core::WorkBreakState::Break;
+        driver.state_blend = 1.0;
+        let high = render_scene_to_rgba8(&gpu, w, h, &mut sr, &driver, 0.0, 0);
+
+        assert_eq!(low.len(), high.len());
+        assert!(low != high, "richness dial / state should change the image");
+        assert!(high.iter().any(|&b| b > 0), "break frame is entirely black");
     }
 }

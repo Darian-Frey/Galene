@@ -27,11 +27,13 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   transition blend), `resolve_layer_params` richness scaling (D-010) — all tested.
   **Renderer is live (greenfield, D-011):** the canonical `VisualModule` trait
   (`ModuleInit`/`FrameCtx`), a headless `GpuContext` (wgpu 29), the `ShaderCanvas`
-  module, the offscreen `Compositor` (multi-layer, blend modes), and per-layer
-  `DofBlur` (render-doc §11 steps 1–2) work — verified by headless readback +
-  unit tests and the `render_frame` / `dof_layers` examples. **Still stubbed:**
-  `post/*`, GlassRain/VolumetricLight modules, the scene/driver→GPU wiring (a
-  `ModuleSpec`→module factory), and the windowed surface loop.
+  module, the offscreen `Compositor` (multi-layer, blend modes), per-layer
+  `DofBlur`, and the scene→GPU wiring (`build_module` factory + `SceneRenderer`
+  driven by the `EnvironmentDriver`) — render-doc §11 steps 1–3, verified by
+  headless readback + unit tests and the `render_frame` / `dof_layers` /
+  `scene_render` examples. Non-ShaderCanvas layers render as tinted
+  `PlaceholderModule` fills for now. **Still stubbed:** `post/*`, the real
+  GlassRain/VolumetricLight/GeometricField/… modules, and the windowed surface loop.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
 - `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
@@ -47,12 +49,13 @@ design the canonical `VisualModule` render-into-target trait → wgpu device/sur
 setup → compositor with one trivial layer → per-layer DOF → post chain → Rainy
 Library + GlassRain/VolumetricLight.
 
-The render-doc §12 questions are **resolved** (D-011); steps 1–2 (compositor +
-per-layer DOF) are done. **Next:** render-doc §11 step 3 — wire the
-`EnvironmentDriver` + richness dial to visible output via a `ModuleSpec`→module
-factory, so the actual Rainy Library scene drives the screen. Then step 4 (the
-post chain: HDR accumulation, bloom, grade, vignette, grain, tone-map). Relevant
-features: F-010, F-001, F-003, F-009.
+The render-doc §12 questions are **resolved** (D-011); steps 1–3 (compositor,
+per-layer DOF, scene→GPU wiring) are done — the Rainy Library scene renders and
+the dial drives it. **Next:** render-doc §11 step 4 — the post chain. This
+introduces an HDR (RGBA16F) accumulation target (layers currently composite into
+the LDR output), then bloom → colour grade (the scene's `LiftGammaGain`, D-008) →
+vignette → film grain → tone-map. Then steps 5–6: the real GlassRain /
+VolumetricLight / GeometricField modules. Features: F-010, F-001, F-003, F-009.
 
 ## Invariants
 

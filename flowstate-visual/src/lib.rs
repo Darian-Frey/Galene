@@ -29,6 +29,9 @@ pub use driver::EnvironmentDriver;
 pub use gpu::GpuContext;
 pub use layer::{BlendMode, DriverContext, Layer};
 pub use modules::shader_canvas::ShaderCanvasModule;
-pub use modules::{FrameCtx, ModuleInit, VisualModule, FULLSCREEN_VS};
-pub use renderer::{module_init, render_layers_to_rgba8, render_module_to_rgba8};
+pub use modules::{build_module, FrameCtx, ModuleInit, PlaceholderModule, VisualModule, FULLSCREEN_VS};
+pub use renderer::{
+    module_init, render_layers_to_rgba8, render_module_to_rgba8, render_scene_to_rgba8,
+    SceneRenderer,
+};
 pub use scene::Scene;
