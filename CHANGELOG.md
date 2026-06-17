@@ -50,6 +50,13 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   recombine) → colour grade (the scene's `LiftGammaGain`) → vignette → host-seeded
   film grain → tone-map, to an sRGB output. The Library reads warm-amber with a
   vignette and grain. Tone-map is `saturate` for now (IMP-002). (F-010)
+- **Windowed viewer** — `flowstate-app` now opens a live winit window with a wgpu
+  surface and runs the real-time render loop: each frame ticks the
+  `EnvironmentDriver` + a `FocusSession` and renders the scene via `SceneRenderer`
+  to the surface. ↑/↓ adjust richness, Space toggles work/break (90s transition),
+  Esc quits; a Pomodoro ticks underneath. Host-supplied time/seed keep the
+  per-frame path deterministic (AV-006). `-- --headless` runs the logic demo.
+  Verified on-screen (NVIDIA/Vulkan). (F-001, F-003, F-005)
 - **Real visual modules (render-doc §11 steps 5–6)** — replaced placeholders
   with `VolumetricLight` (additive radial lamp pools), `GeometricField`
   (procedural shelf / window / table silhouette presets), and `GlassRain`

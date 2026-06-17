@@ -15,6 +15,12 @@ flowstate-core.workspace = true
 flowstate-audio.workspace = true
 flowstate-visual.workspace = true
 
-# tauri is deferred to the Phase 0 app scaffold. For now this is a plain binary
-# so the workspace builds without the Tauri / Node frontend toolchain. The
-# `frontend/` tree holds the eventual TypeScript UI (FlowState §13.2).
+# Windowed viewer (pre-Tauri): a winit window + wgpu surface running the live
+# render loop. `cargo run -p flowstate-app` opens it; `-- --headless` runs the
+# logic demo instead.
+winit = "0.30"
+wgpu = "29"
+pollster = "0.4"
+
+# tauri is deferred to the Phase 0 app scaffold. The `frontend/` tree holds the
+# eventual TypeScript UI (FlowState §13.2).

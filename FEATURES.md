@@ -24,7 +24,9 @@ richness helps focus where minimalism fails.
   generative ambient soundscape.
 - The environment evolves continuously over a multi-hour session without an
   audible or visible loop.
-**Status:** In progress (scene format + driver implemented; GPU rendering stubbed)
+**Status:** In progress (renders live in a window — the Rainy Library as a
+warm-lit interior, evolving and dial-driven; full-screen mode and the generative
+soundscape remain)
 **Notes:** See [docs/flowstate_render_scene.md](docs/flowstate_render_scene.md).
 
 ### F-002 Twelve built-in environments

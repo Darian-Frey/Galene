@@ -40,11 +40,11 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   audio, and the session timer in the app.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
-- `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
-  scene, prints the richness-dial→rain table, then simulates a 25/5 Pomodoro
-  driving `FocusSession` + `EnvironmentDriver` together (transitions, blend,
-  evolution) and records the session into `AnalyticsStore`. **Tauri shell + TS
-  frontend not started.**
+- `flowstate-app`: a **live windowed viewer** (winit + wgpu surface) is the
+  default — opens a window rendering the Rainy Library, ↑/↓ adjust richness, Space
+  toggles work/break (90s transition), a Pomodoro ticks underneath. Verified
+  on-screen (NVIDIA/Vulkan, X11). `-- --headless` runs the original logic demo.
+  **Tauri shell + TS frontend not started.**
 
 ## Active task
 
@@ -53,13 +53,13 @@ design the canonical `VisualModule` render-into-target trait → wgpu device/sur
 setup → compositor with one trivial layer → per-layer DOF → post chain → Rainy
 Library + GlassRain/VolumetricLight.
 
-The render-doc §11 build order (steps 1–6) is **done** — the Rainy Library renders
-as a recognisable interior and the dial/state drive it (`--example scene_render`).
-**Next** (Phase 0 finish): wire `flowstate-audio` (`interior_rain.nyx`) so the
-scene also sounds right (F-009), and/or build the **windowed surface loop** so it
-runs live and interactive (the deferred viewer) with a session timer driving the
-work↔break transition. Lower-priority polish: real `ParticleSystem` (dust/rain
-streaks), the ACES tone-map (IMP-002), and the remaining shared modules.
+The render-doc §11 build order (steps 1–6) **and the windowed viewer** are done —
+Galene opens a window and renders the Rainy Library live, dial/state driven
+(`cargo run -p flowstate-app`). **Next** (Phase 0 finish): wire `flowstate-audio`
+(`interior_rain.nyx`) so the scene also *sounds* right (F-009) — gated on whether
+the Nyx crate is actually available (the open question, like Synaesthesia was).
+Lower-priority polish: full-screen toggle + session-end card, real `ParticleSystem`
+(dust/rain streaks), the ACES tone-map (IMP-002), and 60fps validation (AV-001).
 
 ## Invariants
 

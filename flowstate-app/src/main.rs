@@ -10,6 +10,7 @@
 
 mod commands;
 mod state;
+mod viewer;
 
 use flowstate_core::analytics::SessionRecord;
 use flowstate_core::{effective_richness, FocusSession, SessionEvent, SessionType, WorkBreakState};
@@ -22,6 +23,16 @@ use state::AppState;
 const RAINY_LIBRARY: &str = include_str!("../../environments/rainy_library.ron");
 
 fn main() {
+    // Default: open the live windowed viewer. `--headless` runs the logic demo
+    // (no GPU surface / display needed).
+    if std::env::args().any(|a| a == "--headless") {
+        run_headless_demo();
+    } else {
+        viewer::run();
+    }
+}
+
+fn run_headless_demo() {
     println!("Galene {} — headless logic demo\n", env!("CARGO_PKG_VERSION"));
 
     let scene = Scene::from_ron(RAINY_LIBRARY).expect("bundled scene should parse");

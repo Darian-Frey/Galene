@@ -25,7 +25,11 @@ Phases are append-only; mark Complete with an ISO date.
       GeometricField (shelf/window/table presets), GlassRain (backdrop-reading
       refraction + the compositor backdrop path). ParticleSystem (dust) and the
       other shared modules remain placeholder.
-- [ ] Nyx audio (`interior_rain.nyx`) + the windowed surface loop + session timer
+- [x] Windowed viewer (`flowstate-app`): winit window + wgpu surface, live render
+      loop, ↑/↓ richness, Space work/break (90s transition), Pomodoro ticking.
+      Verified on-screen (NVIDIA/Vulkan). `-- --headless` runs the logic demo.
+- [ ] Nyx audio (`interior_rain.nyx`) so the Library also *sounds* right
+- [ ] Polish: full-screen toggle, session-end card
 - [ ] Post chain (vignette, grain, grade, bloom, tone-map)
 - [ ] GlassRain and VolumetricLight primitives
 - [ ] `flowstate-audio`: Nyx integration with `interior_rain.nyx`
