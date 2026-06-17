@@ -9,6 +9,7 @@
 //! Cellular Automata, Waveform Ribbon, Shader Canvas) are shared (render doc §4).
 //! The two new primitives — [`glass_rain`] and [`volumetric_light`] — live here.
 
+pub mod geometric_field;
 pub mod glass_rain;
 pub mod placeholder;
 pub mod shader_canvas;
@@ -16,9 +17,11 @@ pub mod volumetric_light;
 
 use serde::{Deserialize, Serialize};
 
+pub use geometric_field::GeometricFieldModule;
+pub use glass_rain::GlassRainModule;
 pub use placeholder::PlaceholderModule;
 pub use shader_canvas::ShaderCanvasModule;
-pub use volumetric_light::LightSource;
+pub use volumetric_light::{LightSource, VolumetricLightModule};
 
 use crate::layer::ResolvedParams;
 
@@ -102,8 +105,8 @@ pub fn build_module(spec: &ModuleSpec, init: &ModuleInit) -> Box<dyn VisualModul
         ModuleSpec::ShaderCanvas { shader } => {
             Box::new(ShaderCanvasModule::new(init, shader))
         }
-        ModuleSpec::GeometricField { .. } => {
-            Box::new(PlaceholderModule::new(init, "GeometricField", [0.12, 0.12, 0.16]))
+        ModuleSpec::GeometricField { preset } => {
+            Box::new(GeometricFieldModule::new(init, preset))
         }
         ModuleSpec::ParticleSystem { .. } => {
             Box::new(PlaceholderModule::new(init, "ParticleSystem", [0.85, 0.85, 0.95]))
@@ -123,13 +126,124 @@ pub fn build_module(spec: &ModuleSpec, init: &ModuleInit) -> Box<dyn VisualModul
         ModuleSpec::WaveformRibbon => {
             Box::new(PlaceholderModule::new(init, "WaveformRibbon", [0.40, 0.50, 0.60]))
         }
-        ModuleSpec::GlassRain => {
-            Box::new(PlaceholderModule::new(init, "GlassRain", [0.60, 0.70, 0.80]))
-        }
-        ModuleSpec::VolumetricLight { .. } => {
-            Box::new(PlaceholderModule::new(init, "VolumetricLight", [1.0, 0.75, 0.45]))
+        ModuleSpec::GlassRain => Box::new(GlassRainModule::new(init)),
+        ModuleSpec::VolumetricLight { sources } => {
+            Box::new(VolumetricLightModule::new(init, sources))
         }
     }
+}
+
+/// A fullscreen pass with a single fragment-stage uniform buffer at binding 0 —
+/// the common shape of most modules. Reduces per-module pipeline boilerplate.
+pub(crate) struct FullscreenUniform {
+    pub pipeline: wgpu::RenderPipeline,
+    pub uniform: wgpu::Buffer,
+    pub bind_group: wgpu::BindGroup,
+}
+
+/// Build a [`FullscreenUniform`]: `FULLSCREEN_VS` + `fragment_wgsl`, one uniform
+/// buffer of `uniform_size` bytes, targeting `init.target_format` (no blend —
+/// the compositor applies the layer's blend mode).
+pub(crate) fn fullscreen_uniform(
+    init: &ModuleInit,
+    label: &str,
+    fragment_wgsl: &str,
+    uniform_size: u64,
+) -> FullscreenUniform {
+    let device = init.device;
+    let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+        label: Some(label),
+        source: wgpu::ShaderSource::Wgsl(format!("{FULLSCREEN_VS}\n{fragment_wgsl}").into()),
+    });
+    let uniform = device.create_buffer(&wgpu::BufferDescriptor {
+        label: Some(label),
+        size: uniform_size,
+        usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        mapped_at_creation: false,
+    });
+    let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+        label: Some(label),
+        entries: &[wgpu::BindGroupLayoutEntry {
+            binding: 0,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Uniform,
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        }],
+    });
+    let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+        label: Some(label),
+        layout: &bgl,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: uniform.as_entire_binding(),
+        }],
+    });
+    let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+        label: Some(label),
+        bind_group_layouts: &[Some(&bgl)],
+        immediate_size: 0,
+    });
+    let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+        label: Some(label),
+        layout: Some(&layout),
+        vertex: wgpu::VertexState {
+            module: &shader,
+            entry_point: Some("vs"),
+            buffers: &[],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        },
+        fragment: Some(wgpu::FragmentState {
+            module: &shader,
+            entry_point: Some("fs"),
+            targets: &[Some(wgpu::ColorTargetState {
+                format: init.target_format,
+                blend: None,
+                write_mask: wgpu::ColorWrites::ALL,
+            })],
+            compilation_options: wgpu::PipelineCompilationOptions::default(),
+        }),
+        primitive: wgpu::PrimitiveState::default(),
+        depth_stencil: None,
+        multisample: wgpu::MultisampleState::default(),
+        multiview_mask: None,
+        cache: None,
+    });
+    FullscreenUniform {
+        pipeline,
+        uniform,
+        bind_group,
+    }
+}
+
+/// Record a fullscreen draw of `fu` into `target` (clears to transparent first).
+pub(crate) fn draw_fullscreen(
+    encoder: &mut wgpu::CommandEncoder,
+    fu: &FullscreenUniform,
+    target: &wgpu::TextureView,
+) {
+    let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: Some("module.pass"),
+        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            view: target,
+            resolve_target: None,
+            depth_slice: None,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                store: wgpu::StoreOp::Store,
+            },
+        })],
+        depth_stencil_attachment: None,
+        timestamp_writes: None,
+        occlusion_query_set: None,
+        multiview_mask: None,
+    });
+    pass.set_pipeline(&fu.pipeline);
+    pass.set_bind_group(0, &fu.bind_group, &[]);
+    pass.draw(0..3, 0..1);
 }
 
 /// A fullscreen-triangle vertex shader shared by fullscreen modules and the

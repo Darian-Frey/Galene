@@ -100,11 +100,14 @@ card are Phase 2 UI)
 - Multi-target layer compositing with per-layer depth-of-field blur, HDR
   (RGBA16F) targets, and a post chain (bloom → grade → vignette → grain → tone-map).
 - Holds 60fps on target hardware at all richness levels (AV-001).
-**Status:** In progress (render-doc §11 steps 1–3 done — canonical `VisualModule`
-trait, wgpu `GpuContext`, ShaderCanvas, offscreen multi-layer Compositor with
-blend modes, per-layer DOF blur, and the scene→GPU wiring (`build_module` +
-`SceneRenderer` driven by `EnvironmentDriver`); the Rainy Library renders and the
-dial drives it. Post chain and the real primitives next — D-011)
+**Status:** In progress (render-doc §11 build order steps 1–6 done — canonical
+`VisualModule` trait, wgpu `GpuContext`, ShaderCanvas, offscreen multi-layer
+Compositor with blend modes + DOF + the refraction backdrop path, scene→GPU
+wiring (`build_module` + `SceneRenderer` driven by `EnvironmentDriver`), the post
+chain, and the real VolumetricLight / GeometricField / GlassRain modules; the
+Rainy Library renders as a warm-lit interior and the dial drives it. Remaining:
+the windowed surface loop, 60fps validation on target hardware (AV-001),
+ParticleSystem, and ACES tone-map — D-011)
 
 ## Candidate features (uncommitted)
 

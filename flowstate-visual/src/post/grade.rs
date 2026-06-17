@@ -18,4 +18,25 @@ pub enum ColourGrade {
     // TODO(post-v1): Lut { handle: String } once an asset pipeline exists.
 }
 
-// TODO(phase-0): WGSL implementation in shaders/post/grade.wgsl.
+impl ColourGrade {
+    /// A no-op grade (lift 0, gamma 1, gain 1) — used by the lower-level render
+    /// paths that have no scene grade.
+    pub fn identity() -> Self {
+        ColourGrade::LiftGammaGain {
+            lift: (0.0, 0.0, 0.0),
+            gamma: (1.0, 1.0, 1.0),
+            gain: (1.0, 1.0, 1.0),
+        }
+    }
+
+    /// `(lift, gamma, gain)` as RGB triples, for packing into the post uniform.
+    pub fn components(&self) -> ([f32; 3], [f32; 3], [f32; 3]) {
+        match *self {
+            ColourGrade::LiftGammaGain { lift, gamma, gain } => (
+                [lift.0, lift.1, lift.2],
+                [gamma.0, gamma.1, gamma.2],
+                [gain.0, gain.1, gain.2],
+            ),
+        }
+    }
+}

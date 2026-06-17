@@ -45,6 +45,20 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   `EnvironmentDriver`. The Rainy Library scene now renders, and the richness dial
   + work/break state visibly change it. Verified by a test and a `scene_render`
   example (subdued work vs rich break). (F-001, F-003, F-010)
+- **Post chain (render-doc §11 step 4)** — layers now composite into an HDR
+  (RGBA16F) accumulation, then `PostStage` runs bloom (bright-pass → blur →
+  recombine) → colour grade (the scene's `LiftGammaGain`) → vignette → host-seeded
+  film grain → tone-map, to an sRGB output. The Library reads warm-amber with a
+  vignette and grain. Tone-map is `saturate` for now (IMP-002). (F-010)
+- **Real visual modules (render-doc §11 steps 5–6)** — replaced placeholders
+  with `VolumetricLight` (additive radial lamp pools), `GeometricField`
+  (procedural shelf / window / table silhouette presets), and `GlassRain`
+  (screen-space refraction). GlassRain reads the composited backdrop, so the
+  compositor gained a backdrop path: refraction layers are skipped in the
+  per-layer pass, then composite the accumulation-so-far into a backdrop texture
+  and refract it back (render doc §5.1). The Rainy Library now reads as a
+  warm-lit room with three windows, a lamp, and rain on the glass. ParticleSystem
+  (dust) and the other shared modules remain placeholder. (F-001, F-010)
 
 ### Changed
 - Resolved the render-doc §12 rendering questions (D-011). Repo inspection found

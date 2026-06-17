@@ -19,7 +19,13 @@ Phases are append-only; mark Complete with an ISO date.
 - [x] EnvironmentDriver + richness wired to visible output via a
       `ModuleSpec`→module factory + `SceneRenderer` (step 3) — the `rainy_library.ron`
       scene renders and the dial/state change it (`--example scene_render`)
-- [ ] Post chain (step 4): HDR accumulation, bloom, colour grade, vignette, grain, tone-map
+- [x] Post chain (step 4): HDR accumulation + bloom + colour grade + vignette +
+      grain + tone-map — the Library reads warm-amber (`--example scene_render`)
+- [x] Real modules (steps 5–6): VolumetricLight (additive lamp glow),
+      GeometricField (shelf/window/table presets), GlassRain (backdrop-reading
+      refraction + the compositor backdrop path). ParticleSystem (dust) and the
+      other shared modules remain placeholder.
+- [ ] Nyx audio (`interior_rain.nyx`) + the windowed surface loop + session timer
 - [ ] Post chain (vignette, grain, grade, bloom, tone-map)
 - [ ] GlassRain and VolumetricLight primitives
 - [ ] `flowstate-audio`: Nyx integration with `interior_rain.nyx`

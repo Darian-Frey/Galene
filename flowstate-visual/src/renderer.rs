@@ -11,7 +11,12 @@ use crate::driver::EnvironmentDriver;
 use crate::gpu::GpuContext;
 use crate::layer::{BlendMode, ResolvedParams};
 use crate::modules::{build_module, ModuleInit, VisualModule};
+use crate::post::{ColourGrade, PostChain};
 use crate::scene::Scene;
+
+/// Output format for the headless render paths. sRGB so the read-back bytes are
+/// gamma-encoded and look correct in an image viewer.
+const OUTPUT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8UnormSrgb;
 
 /// Build a `ModuleInit` for constructing modules that render into a layer target
 /// (RGBA16F).
@@ -35,7 +40,6 @@ pub fn render_layers_to_rgba8(
     params: &[ResolvedParams],
 ) -> Vec<u8> {
     let device = &gpu.device;
-    let output_format = wgpu::TextureFormat::Rgba8Unorm;
 
     let output_tex = device.create_texture(&wgpu::TextureDescriptor {
         label: Some("render.output"),
@@ -47,13 +51,22 @@ pub fn render_layers_to_rgba8(
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: output_format,
+        format: OUTPUT_FORMAT,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });
     let output_view = output_tex.create_view(&wgpu::TextureViewDescriptor::default());
 
-    let compositor = Compositor::new(device, width, height, output_format, specs);
+    // Lower-level path: no scene post settings → identity grade, no bloom/grain.
+    let compositor = Compositor::new(
+        device,
+        width,
+        height,
+        OUTPUT_FORMAT,
+        specs,
+        PostChain::default(),
+        ColourGrade::identity(),
+    );
     compositor.render_frame(gpu, modules, params, 0.0, 0, &output_view);
 
     read_texture_rgba8(gpu, &output_tex, width, height)
@@ -105,7 +118,15 @@ impl SceneRenderer {
                 blend: l.blend,
             })
             .collect();
-        let compositor = Compositor::new(&gpu.device, width, height, output_format, &specs);
+        let compositor = Compositor::new(
+            &gpu.device,
+            width,
+            height,
+            output_format,
+            &specs,
+            scene.post,
+            scene.grade,
+        );
 
         let init = module_init(gpu);
         let modules = scene
@@ -159,7 +180,7 @@ pub fn render_scene_to_rgba8(
         mip_level_count: 1,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8Unorm,
+        format: OUTPUT_FORMAT,
         usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
         view_formats: &[],
     });
@@ -282,7 +303,7 @@ mod tests {
             Scene::from_ron(include_str!("../../environments/rainy_library.ron")).unwrap();
         let mut driver = EnvironmentDriver::new(scene);
         let (w, h) = (96u32, 54u32);
-        let mut sr = SceneRenderer::new(&gpu, w, h, wgpu::TextureFormat::Rgba8Unorm, &driver.scene);
+        let mut sr = SceneRenderer::new(&gpu, w, h, OUTPUT_FORMAT, &driver.scene);
 
         // Low richness in the work state.
         driver.richness = 0.05;

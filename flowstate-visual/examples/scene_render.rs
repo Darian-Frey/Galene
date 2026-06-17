@@ -37,7 +37,7 @@ fn main() {
     let (w, h) = (512u32, 288u32);
     let mut driver = EnvironmentDriver::new(scene);
     let mut renderer =
-        SceneRenderer::new(&gpu, w, h, wgpu::TextureFormat::Rgba8Unorm, &driver.scene);
+        SceneRenderer::new(&gpu, w, h, wgpu::TextureFormat::Rgba8UnormSrgb, &driver.scene);
 
     // Work state, gentle richness (0.35).
     driver.richness = 0.35;

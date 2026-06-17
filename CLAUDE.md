@@ -28,12 +28,16 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   **Renderer is live (greenfield, D-011):** the canonical `VisualModule` trait
   (`ModuleInit`/`FrameCtx`), a headless `GpuContext` (wgpu 29), the `ShaderCanvas`
   module, the offscreen `Compositor` (multi-layer, blend modes), per-layer
-  `DofBlur`, and the scene→GPU wiring (`build_module` factory + `SceneRenderer`
-  driven by the `EnvironmentDriver`) — render-doc §11 steps 1–3, verified by
-  headless readback + unit tests and the `render_frame` / `dof_layers` /
-  `scene_render` examples. Non-ShaderCanvas layers render as tinted
-  `PlaceholderModule` fills for now. **Still stubbed:** `post/*`, the real
-  GlassRain/VolumetricLight/GeometricField/… modules, and the windowed surface loop.
+  `DofBlur`, the scene→GPU wiring (`build_module` factory + `SceneRenderer`
+  driven by the `EnvironmentDriver`), the `PostStage` (HDR accumulation → bloom →
+  grade → vignette → grain → tone-map), and the real `VolumetricLight` /
+  `GeometricField` / `GlassRain` modules (incl. the compositor backdrop path for
+  refraction, §5.1) — render-doc §11 steps 1–6, verified by headless readback +
+  unit tests and the `render_frame` / `dof_layers` / `scene_render` examples (the
+  Library reads as a warm-lit room with windows, lamp, and rain on glass).
+  `ParticleSystem` (dust) and the other shared modules are still
+  `PlaceholderModule` fills. **Not yet built:** the windowed surface loop, Nyx
+  audio, and the session timer in the app.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
 - `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
@@ -49,13 +53,13 @@ design the canonical `VisualModule` render-into-target trait → wgpu device/sur
 setup → compositor with one trivial layer → per-layer DOF → post chain → Rainy
 Library + GlassRain/VolumetricLight.
 
-The render-doc §12 questions are **resolved** (D-011); steps 1–3 (compositor,
-per-layer DOF, scene→GPU wiring) are done — the Rainy Library scene renders and
-the dial drives it. **Next:** render-doc §11 step 4 — the post chain. This
-introduces an HDR (RGBA16F) accumulation target (layers currently composite into
-the LDR output), then bloom → colour grade (the scene's `LiftGammaGain`, D-008) →
-vignette → film grain → tone-map. Then steps 5–6: the real GlassRain /
-VolumetricLight / GeometricField modules. Features: F-010, F-001, F-003, F-009.
+The render-doc §11 build order (steps 1–6) is **done** — the Rainy Library renders
+as a recognisable interior and the dial/state drive it (`--example scene_render`).
+**Next** (Phase 0 finish): wire `flowstate-audio` (`interior_rain.nyx`) so the
+scene also sounds right (F-009), and/or build the **windowed surface loop** so it
+runs live and interactive (the deferred viewer) with a session timer driving the
+work↔break transition. Lower-priority polish: real `ParticleSystem` (dust/rain
+streaks), the ACES tone-map (IMP-002), and the remaining shared modules.
 
 ## Invariants
 

@@ -1,19 +1,18 @@
-//! Multi-target layer compositing (render doc §3).
+//! Multi-target layer compositing + post (render doc §3).
 //!
 //! Each layer is rendered to its own RGBA16F offscreen target, optionally
-//! depth-of-field blurred (proportional to `depth_blur`), then composited
-//! back-to-front into the output with the layer's blend mode. This is render-doc
-//! §11 **steps 1–2**: offscreen targets, per-layer DOF, and the composite.
-//!
-//! Layers currently composite straight into the (LDR) output. The HDR
-//! accumulation target + tone-mapping post pass arrive with the post chain
-//! (step 4), when additive light layers and bloom need headroom > 1.0.
+//! depth-of-field blurred, then composited back-to-front into an HDR (RGBA16F)
+//! accumulation target with the layer's blend mode. The [`PostStage`] then runs
+//! bloom → grade → vignette → grain → tone-map from the accumulation to the
+//! output. This is render-doc §11 **steps 1–4**.
 
 use crate::dof::DofBlur;
 use crate::layer::{BlendMode, ResolvedParams};
 use crate::modules::{FrameCtx, VisualModule};
+use crate::post::{ColourGrade, PostChain, PostStage};
 
-/// HDR format for all layer targets (render doc §3: light layers exceed 1.0).
+/// HDR format for all layer targets and the accumulation (render doc §3: light
+/// layers exceed 1.0).
 pub const LAYER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 
 /// Maximum DOF blur radius in pixels, reached at `depth_blur == 1.0`.
@@ -39,21 +38,33 @@ struct LayerBuf {
 }
 
 pub struct Compositor {
+    width: u32,
+    height: u32,
     layers: Vec<LayerBuf>,
     dof: DofBlur,
     composite_normal: wgpu::RenderPipeline,
     composite_additive: wgpu::RenderPipeline,
+    accum_tex: wgpu::Texture,
+    accum_view: wgpu::TextureView,
+    /// A copy of the accumulation-so-far, for refraction layers to sample (§5.1).
+    backdrop_tex: wgpu::Texture,
+    backdrop_view: wgpu::TextureView,
+    post: PostStage,
+    post_chain: PostChain,
+    grade: ColourGrade,
 }
 
 impl Compositor {
-    /// Allocate per-layer targets and build the DOF + composite pipelines that
-    /// write to `output_format`.
+    /// Allocate per-layer targets + the HDR accumulation, and build the DOF,
+    /// composite, and post pipelines. `post_chain` / `grade` come from the scene.
     pub fn new(
         device: &wgpu::Device,
         width: u32,
         height: u32,
         output_format: wgpu::TextureFormat,
         specs: &[CompositeLayer],
+        post_chain: PostChain,
+        grade: ColourGrade,
     ) -> Self {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("compositor.sampler"),
@@ -104,6 +115,7 @@ impl Compositor {
             immediate_size: 0,
         });
 
+        // Layers composite into the HDR accumulation, not the final output.
         let make_pipeline = |blend: Option<wgpu::BlendState>| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some("composite.pipeline"),
@@ -118,7 +130,7 @@ impl Compositor {
                     module: &shader,
                     entry_point: Some("fs"),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format: output_format,
+                        format: LAYER_FORMAT,
                         blend,
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -146,7 +158,7 @@ impl Compositor {
             },
         }));
 
-        let layers = specs
+        let layers: Vec<LayerBuf> = specs
             .iter()
             .map(|spec| {
                 let scale = spec.resolution_scale.clamp(0.05, 1.0);
@@ -200,17 +212,62 @@ impl Compositor {
             })
             .collect();
 
+        let accum_tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("compositor.accum"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: LAYER_FORMAT,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                | wgpu::TextureUsages::TEXTURE_BINDING
+                | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let accum_view = accum_tex.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let backdrop_tex = device.create_texture(&wgpu::TextureDescriptor {
+            label: Some("compositor.backdrop"),
+            size: wgpu::Extent3d {
+                width,
+                height,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: LAYER_FORMAT,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+            view_formats: &[],
+        });
+        let backdrop_view = backdrop_tex.create_view(&wgpu::TextureViewDescriptor::default());
+
+        let post = PostStage::new(device, width, height, output_format, &accum_view);
+
         Self {
+            width,
+            height,
             layers,
             dof: DofBlur::new(device, LAYER_FORMAT),
             composite_normal,
             composite_additive,
+            accum_tex,
+            accum_view,
+            backdrop_tex,
+            backdrop_view,
+            post,
+            post_chain,
+            grade,
         }
     }
 
-    /// Render one frame: draw each module into its layer target, blur layers with
-    /// `depth_blur > 0`, then composite back-to-front into `output_view`.
-    /// `modules` and `params` are parallel to the layer specs (back-to-front).
+    /// Render one frame: each module → its layer target (+ DOF), composite
+    /// back-to-front into the HDR accumulation, then run the post chain to
+    /// `output_view`. `modules` / `params` are parallel to the layer specs.
     pub fn render_frame(
         &self,
         gpu: &crate::gpu::GpuContext,
@@ -229,8 +286,13 @@ impl Compositor {
             label: Some("compositor.encoder"),
         });
 
-        // 1. Each layer → its target, then optional DOF blur.
+        // 1. Each non-refraction layer → its target, then optional DOF blur.
+        //    Refraction layers (GlassRain) are skipped here — they read the
+        //    composited backdrop during step 2.
         for (i, layer) in self.layers.iter().enumerate() {
+            if layer.blend == BlendMode::Refraction {
+                continue;
+            }
             let ctx = FrameCtx {
                 device,
                 queue,
@@ -244,13 +306,54 @@ impl Compositor {
 
             if layer.depth_blur > 0.0 {
                 let radius = layer.depth_blur * MAX_BLUR_PX;
-                self.dof
-                    .blur_in_place(device, &mut encoder, &layer.primary, &layer.temp, layer.size, radius);
+                self.dof.blur_in_place(
+                    device,
+                    &mut encoder,
+                    &layer.primary,
+                    &layer.temp,
+                    layer.size,
+                    radius,
+                );
             }
         }
 
-        // 2. Composite back-to-front into the output (first layer clears it).
+        // 2. Composite back-to-front into the HDR accumulation (layer 0 clears).
         for (i, layer) in self.layers.iter().enumerate() {
+            if layer.blend == BlendMode::Refraction {
+                // Copy the accumulation-so-far into the backdrop, then let the
+                // module refract it back into the accumulation (render doc §5.1).
+                encoder.copy_texture_to_texture(
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &self.accum_tex,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::TexelCopyTextureInfo {
+                        texture: &self.backdrop_tex,
+                        mip_level: 0,
+                        origin: wgpu::Origin3d::ZERO,
+                        aspect: wgpu::TextureAspect::All,
+                    },
+                    wgpu::Extent3d {
+                        width: self.width,
+                        height: self.height,
+                        depth_or_array_layers: 1,
+                    },
+                );
+                let ctx = FrameCtx {
+                    device,
+                    queue,
+                    resolution: (self.width, self.height),
+                    time_secs,
+                    seed,
+                    params: &params[i],
+                    backdrop: Some(&self.backdrop_view),
+                };
+                modules[i].render(&ctx, &self.accum_view, &mut encoder);
+                continue;
+            }
+
             let load = if i == 0 {
                 wgpu::LoadOp::Clear(wgpu::Color::BLACK)
             } else {
@@ -258,14 +361,12 @@ impl Compositor {
             };
             let pipeline = match layer.blend {
                 BlendMode::Additive => &self.composite_additive,
-                // Refraction is handled specially later (render doc §5.1); treat
-                // as normal alpha for now.
                 BlendMode::Normal | BlendMode::Refraction => &self.composite_normal,
             };
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: Some("composite.pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: output_view,
+                    view: &self.accum_view,
                     resolve_target: None,
                     depth_slice: None,
                     ops: wgpu::Operations {
@@ -282,6 +383,18 @@ impl Compositor {
             pass.set_bind_group(0, &layer.composite_bg, &[]);
             pass.draw(0..3, 0..1);
         }
+
+        // 3. Post chain: accumulation → output.
+        self.post.run(
+            device,
+            queue,
+            &mut encoder,
+            output_view,
+            &self.post_chain,
+            &self.grade,
+            seed,
+            (self.width, self.height),
+        );
 
         queue.submit(std::iter::once(encoder.finish()));
     }

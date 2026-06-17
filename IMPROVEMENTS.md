@@ -46,6 +46,25 @@ renderer makes the transition visible.
 **Notes.** {Related context, dependencies on other work.}
 -->
 
+### IMP-002: Filmic tone-map (ACES) once HDR light layers exist
+**Status:** suggested
+**Found:** 2026-06-16 (building the post chain, render-doc §11 step 4)
+**Location:** [flowstate-visual/src/shaders/post/post.wgsl](flowstate-visual/src/shaders/post/post.wgsl)
+**Effort:** small
+**Description.** The post chain's tone-map is currently `clamp(c, 0, 1)`
+(saturate). The render doc (§5.3) calls for ACES or Reinhard. Saturate is correct
+*now* because all content is roughly LDR (the gradient + translucent placeholder
+fills), but once `VolumetricLight` and additive layers push values > 1.0,
+saturate will hard-clip highlights instead of rolling them off.
+**Proposal.** Replace the clamp with an ACES filmic approximation (optionally an
+exposure multiplier) in `post.wgsl`.
+**Trade-offs.** ACES darkens mid-tones slightly, so applying it now — before any
+true-HDR content exists — would dim the scene for no benefit and make the current
+output look worse. It also wants the real light layers present to tune the knee.
+Hence deferred, not applied.
+**Notes.** Flagged inline in `post.wgsl`. Revisit with render-doc §11 steps 5–6
+(real VolumetricLight). Relates to AV-001 (the post chain is in the frame budget).
+
 ## Applied
 
 _None yet._
