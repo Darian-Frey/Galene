@@ -38,6 +38,7 @@ impl Default for GlassRain {
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct Uniforms {
     params: [f32; 4], // rain_density, refraction_strength, glass_fog, time
+    info: [f32; 4],   // aspect, texel_x, texel_y, _
 }
 
 /// Renders the rain-on-glass refraction layer. Unlike ordinary modules it reads
@@ -164,12 +165,19 @@ impl VisualModule for GlassRainModule {
             .backdrop
             .expect("GlassRain requires a backdrop (compositor refraction path)");
 
+        let (w, h) = ctx.resolution;
         let u = Uniforms {
             params: [
                 ctx.params.get("rain_density").copied().unwrap_or(0.5),
                 ctx.params.get("refraction_strength").copied().unwrap_or(0.3),
                 ctx.params.get("glass_fog").copied().unwrap_or(0.2),
                 ctx.time_secs,
+            ],
+            info: [
+                w as f32 / h.max(1) as f32,
+                1.0 / w.max(1) as f32,
+                1.0 / h.max(1) as f32,
+                0.0,
             ],
         };
         ctx.queue.write_buffer(&self.uniform, 0, bytemuck::bytes_of(&u));

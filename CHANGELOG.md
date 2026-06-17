@@ -68,6 +68,12 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   (dust) and the other shared modules remain placeholder. (F-001, F-010)
 
 ### Changed
+- **GlassRain rewrite** — replaced the coarse value-noise refraction (blocky)
+  with a procedural grid-cell droplet model after Steinrucken's "Heartfelt" and
+  Lagarde's "Water drop" work: hashed per-cell drops slide down (sawtooth) with a
+  sine-of-sine wobble and leave trails; the drop height-field's gradient refracts
+  the backdrop; the glass is frosted (3×3 blur) everywhere and cleared through the
+  drops. Reads as real rain on glass. Follow-ups in IMP-003. (F-001)
 - Resolved the render-doc §12 rendering questions (D-011). Repo inspection found
   Synaesthesia is not built (no repo/crate; the Nyx workspace is audio-only), so
   Galene is the **canonical origin** of the shared rendering stack: the
