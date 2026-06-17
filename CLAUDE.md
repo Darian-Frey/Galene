@@ -27,10 +27,11 @@ Use "Galene" for the product in prose; leave `flowstate-` identifiers as-is
   transition blend), `resolve_layer_params` richness scaling (D-010) — all tested.
   **Renderer is live (greenfield, D-011):** the canonical `VisualModule` trait
   (`ModuleInit`/`FrameCtx`), a headless `GpuContext` (wgpu 29), the `ShaderCanvas`
-  module, and the offscreen `Compositor` (render-doc §11 step 1) work — verified
-  by headless pixel readback (`renderer::tests`) and `--example render_frame`.
-  **Still stubbed:** `dof`, `post/*`, GlassRain/VolumetricLight modules, the
-  scene/driver→GPU wiring, and the windowed surface loop.
+  module, the offscreen `Compositor` (multi-layer, blend modes), and per-layer
+  `DofBlur` (render-doc §11 steps 1–2) work — verified by headless readback +
+  unit tests and the `render_frame` / `dof_layers` examples. **Still stubbed:**
+  `post/*`, GlassRain/VolumetricLight modules, the scene/driver→GPU wiring (a
+  `ModuleSpec`→module factory), and the windowed surface loop.
 - `flowstate-audio`: richness→patch-parameter mapping implemented; records
   params into a map. **Nyx synthesis not wired.**
 - `flowstate-app`: runs a **headless logic demo** — loads the Rainy Library
@@ -46,11 +47,12 @@ design the canonical `VisualModule` render-into-target trait → wgpu device/sur
 setup → compositor with one trivial layer → per-layer DOF → post chain → Rainy
 Library + GlassRain/VolumetricLight.
 
-The render-doc §12 questions are **resolved** (D-011) and step 1 is done. **Next:**
-render-doc §11 step 2 (per-layer DOF blur, two layers to prove depth separation),
-then step 3 (wire `EnvironmentDriver` + richness to visible output via a
-`ModuleSpec`→module factory), then step 4 (the post chain). Relevant features:
-F-010, F-001, F-003, F-009.
+The render-doc §12 questions are **resolved** (D-011); steps 1–2 (compositor +
+per-layer DOF) are done. **Next:** render-doc §11 step 3 — wire the
+`EnvironmentDriver` + richness dial to visible output via a `ModuleSpec`→module
+factory, so the actual Rainy Library scene drives the screen. Then step 4 (the
+post chain: HDR accumulation, bloom, grade, vignette, grain, tone-map). Relevant
+features: F-010, F-001, F-003, F-009.
 
 ## Invariants
 

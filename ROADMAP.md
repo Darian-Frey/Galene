@@ -14,7 +14,9 @@ Phases are append-only; mark Complete with an ISO date.
 - [x] Canonical `VisualModule` GPU trait + wgpu `GpuContext` (D-011)
 - [x] `flowstate-visual`: offscreen compositor + ShaderCanvas layer (render-doc §11
       step 1) — headless render verified by readback + `--example render_frame`
-- [ ] Per-layer DOF blur; EnvironmentDriver + richness wired to visible output
+- [x] Per-layer DOF blur + multi-layer compositing with blend modes (step 2) —
+      verified by unit test + `--example dof_layers`
+- [ ] EnvironmentDriver + richness wired to visible output (`ModuleSpec`→module factory)
 - [ ] Post chain (vignette, grain, grade, bloom, tone-map)
 - [ ] GlassRain and VolumetricLight primitives
 - [ ] `flowstate-audio`: Nyx integration with `interior_rain.nyx`

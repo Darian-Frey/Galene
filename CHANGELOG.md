@@ -34,6 +34,11 @@ References F-, D-, AV-, BUG-, and IMP- IDs for traceability.
   `ShaderCanvas` module, and the offscreen `Compositor` (render-doc §11 step 1):
   layer → RGBA16F target → composite → output. Verified headlessly by pixel
   readback and a `render_frame` example that writes a viewable image (F-010).
+- **Per-layer DOF + multi-layer compositing (render-doc §11 step 2)** — a
+  separable Gaussian `DofBlur` (radius ∝ `depth_blur`), N layers each rendered to
+  its own target at its `resolution_scale`, blurred, then composited back-to-front
+  with Normal/Additive blend modes. Verified by a hard-edge-softening unit test
+  and a `dof_layers` example (sharp foreground over a blurred background).
 
 ### Changed
 - Resolved the render-doc §12 rendering questions (D-011). Repo inspection found

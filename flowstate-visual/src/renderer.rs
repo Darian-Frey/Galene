@@ -1,19 +1,19 @@
 //! Top-level render entry points.
 //!
 //! The windowed/surface render loop (driven by the app) is added later. For now
-//! this provides a **headless** single-frame render to an RGBA8 buffer, which is
-//! how the offscreen→composite path is exercised and tested without a window
-//! (render-doc §11 step 1). The render-doc §12 questions are resolved (D-011):
+//! this provides **headless** single-frame renders to an RGBA8 buffer, which is
+//! how the offscreen→DOF→composite path is exercised and tested without a window
+//! (render-doc §11 steps 1–2). The render-doc §12 questions are resolved (D-011):
 //! this stack is greenfield in Galene.
 
-use crate::compositor::{Compositor, LAYER_FORMAT};
+use crate::compositor::{CompositeLayer, Compositor, LAYER_FORMAT};
 use crate::gpu::GpuContext;
-use crate::layer::ResolvedParams;
+use crate::layer::{BlendMode, ResolvedParams};
 use crate::modules::{ModuleInit, VisualModule};
 
-/// Build a `ModuleInit` for constructing modules that render into the layer
-/// target (RGBA16F).
-pub fn module_init<'a>(gpu: &'a GpuContext) -> ModuleInit<'a> {
+/// Build a `ModuleInit` for constructing modules that render into a layer target
+/// (RGBA16F).
+pub fn module_init(gpu: &GpuContext) -> ModuleInit<'_> {
     ModuleInit {
         device: &gpu.device,
         queue: &gpu.queue,
@@ -21,17 +21,18 @@ pub fn module_init<'a>(gpu: &'a GpuContext) -> ModuleInit<'a> {
     }
 }
 
-/// Render a single module through the compositor at `width`×`height` and read
-/// the result back as tightly-packed RGBA8 (`width*height*4` bytes).
-pub fn render_module_to_rgba8(
+/// Render a back-to-front stack of layers through the compositor at
+/// `width`×`height` and read the result back as tightly-packed RGBA8.
+/// `modules`, `specs`, and `params` are parallel (index 0 = back layer).
+pub fn render_layers_to_rgba8(
     gpu: &GpuContext,
     width: u32,
     height: u32,
-    module: &mut dyn VisualModule,
-    params: &ResolvedParams,
+    modules: &mut [&mut dyn VisualModule],
+    specs: &[CompositeLayer],
+    params: &[ResolvedParams],
 ) -> Vec<u8> {
     let device = &gpu.device;
-    let queue = &gpu.queue;
     let output_format = wgpu::TextureFormat::Rgba8Unorm;
 
     let output_tex = device.create_texture(&wgpu::TextureDescriptor {
@@ -50,10 +51,40 @@ pub fn render_module_to_rgba8(
     });
     let output_view = output_tex.create_view(&wgpu::TextureViewDescriptor::default());
 
-    let compositor = Compositor::new(device, width, height, output_format);
-    compositor.render_frame(gpu, module, params, 0.0, 0, &output_view);
+    let compositor = Compositor::new(device, width, height, output_format, specs);
+    compositor.render_frame(gpu, modules, params, 0.0, 0, &output_view);
 
-    // Copy the output texture into a mappable buffer (rows padded to 256 bytes).
+    read_texture_rgba8(gpu, &output_tex, width, height)
+}
+
+/// Render a single module as one full-resolution, sharp, normal-blend layer.
+pub fn render_module_to_rgba8(
+    gpu: &GpuContext,
+    width: u32,
+    height: u32,
+    module: &mut dyn VisualModule,
+    params: &ResolvedParams,
+) -> Vec<u8> {
+    let specs = [CompositeLayer {
+        resolution_scale: 1.0,
+        depth_blur: 0.0,
+        blend: BlendMode::Normal,
+    }];
+    let mut modules: [&mut dyn VisualModule; 1] = [module];
+    render_layers_to_rgba8(gpu, width, height, &mut modules, &specs, std::slice::from_ref(params))
+}
+
+/// Copy an RGBA8 texture into a mappable buffer and read it back as
+/// tightly-packed RGBA8 (`width*height*4` bytes; row padding removed).
+pub(crate) fn read_texture_rgba8(
+    gpu: &GpuContext,
+    texture: &wgpu::Texture,
+    width: u32,
+    height: u32,
+) -> Vec<u8> {
+    let device = &gpu.device;
+    let queue = &gpu.queue;
+
     let unpadded_bytes_per_row = width * 4;
     let align = wgpu::COPY_BYTES_PER_ROW_ALIGNMENT;
     let padded_bytes_per_row = unpadded_bytes_per_row.div_ceil(align) * align;
@@ -70,7 +101,7 @@ pub fn render_module_to_rgba8(
     });
     encoder.copy_texture_to_buffer(
         wgpu::TexelCopyTextureInfo {
-            texture: &output_tex,
+            texture,
             mip_level: 0,
             origin: wgpu::Origin3d::ZERO,
             aspect: wgpu::TextureAspect::All,
@@ -91,7 +122,6 @@ pub fn render_module_to_rgba8(
     );
     queue.submit(std::iter::once(encoder.finish()));
 
-    // Map and read back.
     let slice = buffer.slice(..);
     let (tx, rx) = std::sync::mpsc::channel();
     slice.map_async(wgpu::MapMode::Read, move |r| {
@@ -135,20 +165,15 @@ mod tests {
         let px = render_module_to_rgba8(&gpu, w, h, &mut module, &params);
         assert_eq!(px.len() as u32, w * h * 4);
 
-        // Sample the red channel of the centre column at the top vs the bottom.
         let red_at = |row: u32| -> u8 {
             let x = w / 2;
             px[((row * w + x) * 4) as usize]
         };
-        let top = red_at(1);
-        let bottom = red_at(h - 2);
-
         // The gradient warms toward the bottom → more red there than at the top.
         assert!(
-            bottom > top,
-            "expected a vertical gradient (bottom red {bottom} > top red {top})",
+            red_at(h - 2) > red_at(1),
+            "expected a vertical gradient (bottom warmer than top)",
         );
-        // And something actually rendered (not an all-black frame).
         assert!(px.iter().any(|&b| b > 0), "frame is entirely black");
     }
 }

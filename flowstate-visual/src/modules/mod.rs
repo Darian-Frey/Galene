@@ -90,7 +90,8 @@ pub trait VisualModule {
 
 /// A fullscreen-triangle vertex shader shared by fullscreen modules and the
 /// compositor: three vertices covering the screen, with 0..1 UVs (y down).
-pub(crate) const FULLSCREEN_VS: &str = r#"
+/// Public so external/example modules can build their own fullscreen passes.
+pub const FULLSCREEN_VS: &str = r#"
 struct VsOut {
     @builtin(position) pos: vec4<f32>,
     @location(0) uv: vec2<f32>,

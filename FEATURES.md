@@ -100,8 +100,9 @@ card are Phase 2 UI)
 - Multi-target layer compositing with per-layer depth-of-field blur, HDR
   (RGBA16F) targets, and a post chain (bloom → grade → vignette → grain → tone-map).
 - Holds 60fps on target hardware at all richness levels (AV-001).
-**Status:** In progress (render-doc §11 step 1 done — canonical `VisualModule` trait,
-wgpu `GpuContext`, ShaderCanvas + offscreen Compositor, headless-verified; DOF,
+**Status:** In progress (render-doc §11 steps 1–2 done — canonical `VisualModule`
+trait, wgpu `GpuContext`, ShaderCanvas, offscreen multi-layer Compositor with
+blend modes, and per-layer DOF blur, all headless-verified; driver→GPU wiring,
 post chain, and the new primitives next — D-011)
 
 ## Candidate features (uncommitted)
