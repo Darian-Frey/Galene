@@ -70,6 +70,9 @@ pub struct FrameCtx<'a> {
     /// The composited backdrop to sample — `Some` only for refraction modules
     /// (GlassRain, render doc §5.1); `None` for ordinary layers.
     pub backdrop: Option<&'a wgpu::TextureView>,
+    /// A strongly-blurred copy of the backdrop (frosted glass), supplied
+    /// alongside `backdrop` for refraction modules.
+    pub backdrop_blur: Option<&'a wgpu::TextureView>,
 }
 
 /// The interface every visual module implements. A module is constructed

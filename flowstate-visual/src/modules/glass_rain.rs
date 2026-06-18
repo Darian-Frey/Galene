@@ -79,6 +79,7 @@ impl GlassRainModule {
         let bgl = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("glass_rain.bgl"),
             entries: &[
+                // 0: sharp backdrop, 1: frosted backdrop
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::FRAGMENT,
@@ -92,11 +93,21 @@ impl GlassRainModule {
                 wgpu::BindGroupLayoutEntry {
                     binding: 1,
                     visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
                     count: None,
                 },
                 wgpu::BindGroupLayoutEntry {
                     binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 3,
                     visibility: wgpu::ShaderStages::FRAGMENT,
                     ty: wgpu::BindingType::Buffer {
                         ty: wgpu::BufferBindingType::Uniform,
@@ -164,6 +175,8 @@ impl VisualModule for GlassRainModule {
         let backdrop = ctx
             .backdrop
             .expect("GlassRain requires a backdrop (compositor refraction path)");
+        // Fall back to the sharp backdrop if no blurred copy was supplied.
+        let backdrop_blur = ctx.backdrop_blur.unwrap_or(backdrop);
 
         let (w, h) = ctx.resolution;
         let u = Uniforms {
@@ -192,10 +205,14 @@ impl VisualModule for GlassRainModule {
                 },
                 wgpu::BindGroupEntry {
                     binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                    resource: wgpu::BindingResource::TextureView(backdrop_blur),
                 },
                 wgpu::BindGroupEntry {
                     binding: 2,
+                    resource: wgpu::BindingResource::Sampler(&self.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 3,
                     resource: self.uniform.as_entire_binding(),
                 },
             ],

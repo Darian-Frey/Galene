@@ -10,9 +10,10 @@ struct U {
     params: vec4<f32>,  // rain_density, refraction_strength, glass_fog, time
     info: vec4<f32>,    // aspect, texel_x, texel_y, _
 };
-@group(0) @binding(0) var backdrop: texture_2d<f32>;
-@group(0) @binding(1) var smp: sampler;
-@group(0) @binding(2) var<uniform> u: U;
+@group(0) @binding(0) var backdrop: texture_2d<f32>;       // sharp composited scene
+@group(0) @binding(1) var backdrop_blur: texture_2d<f32>;  // frosted (pre-blurred)
+@group(0) @binding(2) var smp: sampler;
+@group(0) @binding(3) var<uniform> u: U;
 
 fn n13(p: f32) -> vec3<f32> {
     var p3 = fract(vec3<f32>(p) * vec3<f32>(0.1031, 0.11369, 0.13787));
@@ -131,25 +132,12 @@ fn water_height(uv: vec2<f32>, t: f32) -> f32 {
     return clamp(h, 0.0, 1.0);
 }
 
-// Frosted-glass blur (5x5, explicit LOD — safe in any control flow).
-fn frost_sample(uv: vec2<f32>, step: vec2<f32>) -> vec3<f32> {
-    var col = vec3<f32>(0.0);
-    for (var i = -2; i <= 2; i = i + 1) {
-        for (var j = -2; j <= 2; j = j + 1) {
-            let o = vec2<f32>(f32(i), f32(j)) * step;
-            col = col + textureSampleLevel(backdrop, smp, uv + o, 0.0).rgb;
-        }
-    }
-    return col / 25.0;
-}
-
 @fragment
 fn fs(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     let strength = u.params.y;
     let fog = u.params.z;
     let t = u.params.w;
     let aspect = u.info.x;
-    let texel = vec2<f32>(u.info.y, u.info.z);
 
     // Water height + gradient (drops are computed in aspect-corrected space).
     let uv_a = vec2<f32>(uv.x * aspect, uv.y);
@@ -164,9 +152,10 @@ fn fs(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     let offset = vec2<f32>(normal.x / aspect, normal.y) * strength * 5.0;
     let sharp = textureSampleLevel(backdrop, smp, uv + offset, 0.0).rgb;
 
-    // Frosted glass everywhere; water reveals the clear refracted view.
-    let frost = frost_sample(uv, texel * (2.0 + fog * 10.0));
-    let glass = mix(textureSampleLevel(backdrop, smp, uv, 0.0).rgb, frost, clamp(fog * 1.4, 0.0, 0.9));
+    // Strongly frosted glass (the pre-blurred backdrop); water reveals the
+    // clear, refracted view — drops read as crisp lenses against soft glass.
+    let frost = textureSampleLevel(backdrop_blur, smp, uv, 0.0).rgb;
+    let glass = mix(textureSampleLevel(backdrop, smp, uv, 0.0).rgb, frost, clamp(0.5 + fog, 0.0, 1.0));
     let wet = smoothstep(0.03, 0.4, h);
     var col = mix(glass, sharp, wet);
 

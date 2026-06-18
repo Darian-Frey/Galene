@@ -18,6 +18,9 @@ pub const LAYER_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 /// Maximum DOF blur radius in pixels, reached at `depth_blur == 1.0`.
 const MAX_BLUR_PX: f32 = 8.0;
 
+/// Blur radius (px) for the frosted-glass backdrop handed to refraction layers.
+const FRAME_BLUR_RADIUS: f32 = 7.0;
+
 /// The compositing properties of one layer (the subset the compositor needs to
 /// allocate targets and choose blend/blur). Drawn from the scene's `Layer`.
 pub struct CompositeLayer {
@@ -49,6 +52,9 @@ pub struct Compositor {
     /// A copy of the accumulation-so-far, for refraction layers to sample (§5.1).
     backdrop_tex: wgpu::Texture,
     backdrop_view: wgpu::TextureView,
+    /// A strongly-blurred copy of the backdrop (frosted glass), and its scratch.
+    backdrop_blur_view: wgpu::TextureView,
+    blur_temp_view: wgpu::TextureView,
     post: PostStage,
     post_chain: PostChain,
     grade: ColourGrade,
@@ -246,6 +252,29 @@ impl Compositor {
         });
         let backdrop_view = backdrop_tex.create_view(&wgpu::TextureViewDescriptor::default());
 
+        // Frosted-glass backdrop (and its separable-blur scratch).
+        let make_blur_target = || {
+            device
+                .create_texture(&wgpu::TextureDescriptor {
+                    label: Some("compositor.backdrop_blur"),
+                    size: wgpu::Extent3d {
+                        width,
+                        height,
+                        depth_or_array_layers: 1,
+                    },
+                    mip_level_count: 1,
+                    sample_count: 1,
+                    dimension: wgpu::TextureDimension::D2,
+                    format: LAYER_FORMAT,
+                    usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                        | wgpu::TextureUsages::TEXTURE_BINDING,
+                    view_formats: &[],
+                })
+                .create_view(&wgpu::TextureViewDescriptor::default())
+        };
+        let backdrop_blur_view = make_blur_target();
+        let blur_temp_view = make_blur_target();
+
         let post = PostStage::new(device, width, height, output_format, &accum_view);
 
         Self {
@@ -259,6 +288,8 @@ impl Compositor {
             accum_view,
             backdrop_tex,
             backdrop_view,
+            backdrop_blur_view,
+            blur_temp_view,
             post,
             post_chain,
             grade,
@@ -301,6 +332,7 @@ impl Compositor {
                 seed,
                 params: &params[i],
                 backdrop: None,
+                backdrop_blur: None,
             };
             modules[i].render(&ctx, &layer.primary, &mut encoder);
 
@@ -341,6 +373,24 @@ impl Compositor {
                         depth_or_array_layers: 1,
                     },
                 );
+
+                // Frost the backdrop (backdrop → blur_temp → backdrop_blur) so the
+                // refraction module can sample foggy glass cheaply.
+                let hb = self.dof.pass_bind_group(
+                    device,
+                    &self.backdrop_view,
+                    [1.0 / self.width as f32, 0.0],
+                    FRAME_BLUR_RADIUS,
+                );
+                self.dof.record(&mut encoder, &hb, &self.blur_temp_view);
+                let vb = self.dof.pass_bind_group(
+                    device,
+                    &self.blur_temp_view,
+                    [0.0, 1.0 / self.height as f32],
+                    FRAME_BLUR_RADIUS,
+                );
+                self.dof.record(&mut encoder, &vb, &self.backdrop_blur_view);
+
                 let ctx = FrameCtx {
                     device,
                     queue,
@@ -349,6 +399,7 @@ impl Compositor {
                     seed,
                     params: &params[i],
                     backdrop: Some(&self.backdrop_view),
+                    backdrop_blur: Some(&self.backdrop_blur_view),
                 };
                 modules[i].render(&ctx, &self.accum_view, &mut encoder);
                 continue;
